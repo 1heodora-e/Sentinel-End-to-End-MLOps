@@ -10,6 +10,9 @@ import zipfile
 # Configure TensorFlow memory before importing (prevents OOM crashes)
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  # Reduce TensorFlow logging
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"  # Prevent GPU memory pre-allocation
+os.environ["CUDA_VISIBLE_DEVICES"] = (
+    "-1"  # Disable CUDA/GPU (Render free tier is CPU-only)
+)
 
 import tensorflow as tf
 
