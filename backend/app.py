@@ -62,7 +62,7 @@ async def startup_event():
         print(f"⚠️ Database initialization warning: {e}")
         print("⚠️ Continuing without database logging. Retraining will still work.")
         print(
-            "⚠️ To enable database: SQLite will be created automatically. No additional setup needed!"
+            "⚠️ To enable database: Set DATABASE_URL environment variable for PostgreSQL connection"
         )
 
     # Load model
@@ -368,7 +368,7 @@ async def retrain_trigger(
     3. Preprocess audio files (convert to spectrograms)
     4. Retrain model using existing model as base
     5. Save retrained model
-    6. Log all steps to SQLite database
+    6. Log all steps to PostgreSQL database
     """
     global is_training
 
@@ -396,7 +396,7 @@ async def retrain_trigger(
         with open(zip_path, "wb") as buffer:
             buffer.write(file_content)
 
-        # 2. Save to SQLite database (Rubric Requirement: Data file Uploading + Saving to Database)
+        # 2. Save to PostgreSQL database (Rubric Requirement: Data file Uploading + Saving to Database)
         upload_id = None
         session_id = None
         try:

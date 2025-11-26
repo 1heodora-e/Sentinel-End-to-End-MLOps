@@ -69,3 +69,23 @@ Thumbs.db
 .coverage
 htmlcov/
 
+# Uploaded retraining data (zip files can be large)
+backend/data/uploads/*.zip
+backend/data/uploads/**/*.zip
+backend/data/uploads/archive.zip
+
+# Temporary spectrograms (generated files)
+backend/data/temp_spectrograms/
+backend/data/**/*.png
+backend/data/**/*.jpg
+backend/data/**/*.jpeg
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+backend/sentinel.db
+
+# Extracted uploads
+backend/data/uploads/extracted/
+backend/data/uploads/**/extracted/

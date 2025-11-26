@@ -1,6 +1,6 @@
 # backend/database.py
 """
-Database models and connection for SQLite.
+Database models and connection for PostgreSQL.
 Stores training data uploads and retraining history.
 """
 
@@ -18,21 +18,16 @@ try:
 except ImportError:
     pass  # python-dotenv not installed, use environment variables only
 
-# SQLite database path - creates a file in the backend directory
-# You can change this path if you want the database elsewhere
-DB_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(DB_DIR, "sentinel.db")
-
-# SQLite connection string (file-based, no server needed!)
-# sqlite:/// means SQLite, and the path is relative or absolute
-DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DB_PATH}")
-
-# Create engine with SQLite-specific settings
-# check_same_thread=False allows SQLite to work with FastAPI's async nature
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {},
+# PostgreSQL connection string
+# Format: postgresql://username:password@host:port/database
+# Default to a local PostgreSQL instance
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://postgres:postgres@localhost:5432/sentinel_db"
 )
+
+# Create engine
+engine = create_engine(DATABASE_URL)
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -49,29 +44,25 @@ class TrainingDataUpload(Base):
     id = Column(Integer, primary_key=True, index=True)
     filename = Column(String(255), nullable=False)
     file_path = Column(String(500), nullable=False)
-    file_size = Column(Integer)  # Size in bytes
-    upload_timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
-    status = Column(
-        String(50), default="uploaded"
-    )  # uploaded, processing, completed, failed
-    safe_files_count = Column(Integer, default=0)
-    danger_files_count = Column(Integer, default=0)
-    total_files_count = Column(Integer, default=0)
+    file_size = Column(Integer, nullable=False)  # Size in bytes
+    upload_timestamp = Column(DateTime, default=datetime.utcnow)
+    status = Column(String(50), default="pending")  # pending, processing, completed, failed
+    safe_count = Column(Integer, default=0)
+    danger_count = Column(Integer, default=0)
+    total_count = Column(Integer, default=0)
     error_message = Column(Text, nullable=True)
 
 
 class RetrainingSession(Base):
-    """Model for storing retraining session history."""
+    """Model for storing retraining session information."""
 
     __tablename__ = "retraining_sessions"
 
     id = Column(Integer, primary_key=True, index=True)
-    upload_id = Column(Integer, nullable=False)  # Foreign key to TrainingDataUpload
-    start_time = Column(DateTime, default=datetime.utcnow, nullable=False)
-    end_time = Column(DateTime, nullable=True)
-    status = Column(
-        String(50), default="started"
-    )  # started, preprocessing, training, completed, failed
+    upload_id = Column(Integer, nullable=False)  # Foreign key to training_data_uploads
+    start_timestamp = Column(DateTime, default=datetime.utcnow)
+    end_timestamp = Column(DateTime, nullable=True)
+    status = Column(String(50), default="pending")  # pending, preprocessing, training, completed, failed
     epochs = Column(Integer, default=10)
     final_accuracy = Column(Float, nullable=True)
     final_val_accuracy = Column(Float, nullable=True)
@@ -85,14 +76,16 @@ def init_db():
     """Initialize database tables."""
     try:
         Base.metadata.create_all(bind=engine)
-        print(f"✅ Database initialized at: {DB_PATH}")
+        print("✅ Database tables created successfully!")
+        print(f"📊 Database: {DATABASE_URL.split('@')[-1] if '@' in DATABASE_URL else DATABASE_URL}")
     except Exception as e:
-        print(f"⚠️ Database initialization error: {e}")
+        print(f"❌ Error creating database tables: {e}")
+        print("\n💡 Make sure PostgreSQL is running and DATABASE_URL is correct.")
         raise
 
 
 def get_db():
-    """Get database session."""
+    """Dependency for getting database session."""
     db = SessionLocal()
     try:
         yield db
@@ -100,10 +93,14 @@ def get_db():
         db.close()
 
 
+# Helper functions for database operations
 def create_upload_record(db, filename, file_path, file_size):
-    """Create a new training data upload record."""
+    """Create a new upload record."""
     upload = TrainingDataUpload(
-        filename=filename, file_path=file_path, file_size=file_size, status="uploaded"
+        filename=filename,
+        file_path=file_path,
+        file_size=file_size,
+        status="pending"
     )
     db.add(upload)
     db.commit()
@@ -111,28 +108,30 @@ def create_upload_record(db, filename, file_path, file_size):
     return upload
 
 
-def update_upload_status(
-    db, upload_id, status, safe_count=0, danger_count=0, total_count=0, error=None
-):
-    """Update upload status and file counts."""
-    upload = (
-        db.query(TrainingDataUpload).filter(TrainingDataUpload.id == upload_id).first()
-    )
+def update_upload_status(db, upload_id, status=None, safe_count=None, danger_count=None, total_count=None):
+    """Update upload status and counts."""
+    upload = db.query(TrainingDataUpload).filter(TrainingDataUpload.id == upload_id).first()
     if upload:
-        upload.status = status
-        upload.safe_files_count = safe_count
-        upload.danger_files_count = danger_count
-        upload.total_files_count = total_count
-        if error:
-            upload.error_message = error
+        if status:
+            upload.status = status
+        if safe_count is not None:
+            upload.safe_count = safe_count
+        if danger_count is not None:
+            upload.danger_count = danger_count
+        if total_count is not None:
+            upload.total_count = total_count
         db.commit()
-        return upload
-    return None
+        db.refresh(upload)
+    return upload
 
 
 def create_retraining_session(db, upload_id, epochs=10):
-    """Create a new retraining session record."""
-    session = RetrainingSession(upload_id=upload_id, status="started", epochs=epochs)
+    """Create a new retraining session."""
+    session = RetrainingSession(
+        upload_id=upload_id,
+        epochs=epochs,
+        status="pending"
+    )
     db.add(session)
     db.commit()
     db.refresh(session)
@@ -148,12 +147,10 @@ def update_retraining_session(
     final_loss=None,
     final_val_loss=None,
     total_samples=None,
-    error=None,
+    error_message=None
 ):
-    """Update retraining session status and metrics."""
-    session = (
-        db.query(RetrainingSession).filter(RetrainingSession.id == session_id).first()
-    )
+    """Update retraining session with results."""
+    session = db.query(RetrainingSession).filter(RetrainingSession.id == session_id).first()
     if session:
         if status:
             session.status = status
@@ -167,10 +164,10 @@ def update_retraining_session(
             session.final_val_loss = final_val_loss
         if total_samples is not None:
             session.total_samples = total_samples
-        if error:
-            session.error_message = error
+        if error_message:
+            session.error_message = error_message
         if status == "completed" or status == "failed":
-            session.end_time = datetime.utcnow()
+            session.end_timestamp = datetime.utcnow()
         db.commit()
-        return session
-    return None
+        db.refresh(session)
+    return session

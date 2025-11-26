@@ -2,14 +2,15 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-# Install system dependencies for audio processing
-# SQLite is built into Python - no additional packages needed!
+# Install system dependencies for audio processing and PostgreSQL
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     make \
     libffi-dev \
     libsndfile1 \
+    libpq-dev \
+    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python dependencies
