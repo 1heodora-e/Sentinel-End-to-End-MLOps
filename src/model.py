@@ -2,17 +2,33 @@
 """
 Model architecture and training functions for Sentinel audio classification.
 """
+import os
+import sys
+import json
+from pathlib import Path
+
+# Configure TensorFlow for CPU-only BEFORE importing TensorFlow
+# This prevents CUDA initialization errors on CPU-only systems (e.g., Render)
+os.environ.setdefault("CUDA_VISIBLE_DEVICES", "-1")
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
+os.environ.setdefault("TF_FORCE_GPU_ALLOW_GROWTH", "true")
+os.environ.setdefault("TF_XLA_FLAGS", "--tf_xla_cpu_global_jit=false")
+os.environ.setdefault("TF_DISABLE_XLA", "1")
+
 import numpy as np
 import tensorflow as tf
+
+# Force CPU-only execution immediately after import
+try:
+    tf.config.set_visible_devices([], "GPU")
+except Exception:
+    pass  # Ignore if already configured
+
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.applications import MobileNetV2
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.preprocessing import image
-from pathlib import Path
-import os
-import json
-import sys
 
 # Add parent directory to path to import preprocessing
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
