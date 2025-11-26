@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Model files
+backend/models/*.h5
+backend/models/*.json
+!backend/models/.gitkeep
+
+# Data files (keep structure, ignore audio)
+backend/data/**/*.wav
+backend/data/**/*.mp3
+backend/data/**/*.flac
+backend/data/**/*.ogg
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.local
+
+# Jupyter
+.ipynb_checkpoints/
+# Allow model.ipynb but ignore other notebooks
+*.ipynb
+!backend/model.ipynb
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+

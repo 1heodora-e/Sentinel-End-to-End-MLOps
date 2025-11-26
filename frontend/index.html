@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentinel - Acoustic Distress Detection</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Quicksand:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1 class="title">
+                <span class="icon">🎧</span> Sentinel
+            </h1>
+            <p class="subtitle">Sophisticated Safety Through Sound</p>
+        </header>
+
+        <main class="main-content">
+            <section class="upload-section card">
+                <h2 class="section-title">Upload Audio File</h2>
+                <div class="upload-area" id="uploadArea">
+                    <input type="file" id="audioFile" accept=".wav,.mp3,.flac,.ogg,.m4a" hidden>
+                    <div class="upload-content">
+                        <span class="upload-icon">📁</span>
+                        <p class="upload-text">Click to select or drag and drop</p>
+                        <p class="upload-hint">Supported formats: WAV, MP3</p>
+                    </div>
+                </div>
+                <div id="fileName" class="file-name"></div>
+                <button id="predictBtn" class="btn btn-primary" disabled>Analyze Audio</button>
+            </section>
+
+            <section class="results-section card" id="resultsSection" style="display: none;">
+                <h2 class="section-title">Analysis Results</h2>
+                
+                <div class="status-display" id="statusDisplay">
+                    <div class="status-icon" id="statusIcon"></div>
+                    <div class="status-text">
+                        <h3 id="statusTitle">Analyzing...</h3>
+                        <p id="statusSubtitle">Processing audio file</p>
+                    </div>
+                </div>
+
+                <div class="confidence-section">
+                    <h3 class="confidence-title">Confidence Score</h3>
+                    <div class="confidence-bar-container">
+                        <div class="confidence-bar" id="confidenceBar">
+                            <div class="confidence-fill" id="confidenceFill"></div>
+                        </div>
+                        <span class="confidence-value" id="confidenceValue">0%</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="card">
+                <h2 class="section-title">Model Status</h2>
+                <div id="modelStatusDisplay" class="model-status">
+                    <div class="status-item">
+                        <span class="status-label">Model Loaded:</span>
+                        <span id="modelLoadedStatus" class="status-value">Checking...</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Training Status:</span>
+                        <span id="trainingStatus" class="status-value">Idle</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="card">
+                <h2 class="section-title">Dataset Distribution</h2>
+                <div style="height: 250px; display: flex; justify-content: center;">
+                    <canvas id="dataChart"></canvas>
+                </div>
+                <p class="upload-hint" style="text-align: center; margin-top: 10px;">
+                    <strong>Interpretation:</strong> Model trained on balanced acoustic data (50% Safe / 50% Danger). 
+                    This balanced distribution prevents class bias and ensures the model learns to distinguish both types of audio signals effectively.
+                </p>
+            </section>
+
+            <section class="card">
+                <h2 class="section-title">Training History</h2>
+                <div style="height: 250px; display: flex; justify-content: center;">
+                    <canvas id="trainingChart"></canvas>
+                </div>
+                <p class="upload-hint" style="text-align: center; margin-top: 10px;">
+                    <strong>Interpretation:</strong> Model performance metrics over training epochs. 
+                    The convergence of training and validation accuracy indicates good generalization. 
+                    Early stopping prevents overfitting by monitoring validation loss.
+                </p>
+            </section>
+
+            <section class="card">
+                <h2 class="section-title">Confidence Distribution</h2>
+                <div style="height: 250px; display: flex; justify-content: center;">
+                    <canvas id="confidenceChart"></canvas>
+                </div>
+                <p class="upload-hint" style="text-align: center; margin-top: 10px;">
+                    <strong>Interpretation:</strong> Distribution of prediction confidence scores. 
+                    High confidence predictions (>80%) indicate clear audio patterns, while lower confidence 
+                    suggests ambiguous signals that may require human review.
+                </p>
+            </section>
+
+            <section class="retrain-section card">
+                <h2 class="section-title">Model Management</h2>
+                <p class="retrain-description">
+                    Upload a .zip file containing new data to trigger the automated retraining pipeline.
+                </p>
+                <input type="file" id="retrainFile" accept=".zip" style="color: white; margin-bottom: 10px;">
+                <button id="retrainBtn" class="btn btn-secondary">Initiate Retraining Protocol</button>
+                <div id="retrainStatus" class="retrain-status"></div>
+            </section>
+        </main>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
