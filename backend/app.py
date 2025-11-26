@@ -13,8 +13,15 @@ os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"  # Prevent GPU memory pre-alloc
 os.environ["CUDA_VISIBLE_DEVICES"] = (
     "-1"  # Disable CUDA/GPU (Render free tier is CPU-only)
 )
+os.environ["TF_XLA_FLAGS"] = (
+    "--tf_xla_cpu_global_jit=false"  # Disable XLA JIT compilation
+)
+os.environ["TF_DISABLE_XLA"] = "1"  # Disable XLA entirely
 
 import tensorflow as tf
+
+# Force CPU-only execution - hide all GPUs before any operations
+tf.config.set_visible_devices([], "GPU")  # Hide all GPUs immediately
 
 # Limit TensorFlow memory growth to prevent OOM on limited resources
 try:
@@ -393,8 +400,8 @@ def retrain_model_background(zip_path, upload_dir, data_dir, upload_id, session_
 
 @app.post("/retrain")
 async def retrain_trigger(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    background_tasks: BackgroundTasks = None,
     db: Session = Depends(get_db),
 ):
     """
