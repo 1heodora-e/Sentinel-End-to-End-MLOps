@@ -60,9 +60,9 @@ Thumbs.db
 
 # Jupyter
 .ipynb_checkpoints/
-# Allow model.ipynb but ignore other notebooks
+# Allow sentinel_model.ipynb but ignore other notebooks
 *.ipynb
-!backend/model.ipynb
+!notebook/sentinel_model.ipynb
 
 # Testing
 .pytest_cache/
@@ -85,6 +85,10 @@ backend/data/**/*.jpeg
 *.sqlite
 *.sqlite3
 backend/sentinel.db
+
+
+# Temporary files (runtime only)
+backend/temp_data/
 
 # Extracted uploads
 backend/data/uploads/extracted/

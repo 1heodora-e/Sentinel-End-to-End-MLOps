@@ -84,7 +84,7 @@ Sentinel-End-to-End-MLOps/
 
 - Python 3.9+
 - pip
-- SQLite (built into Python - no installation needed!)
+- PostgreSQL (cloud-hosted database service)
 - Docker (for containerized deployment)
 - Node.js (optional, for frontend development)
 
@@ -106,22 +106,58 @@ Sentinel-End-to-End-MLOps/
    pip install -r requirements.txt
    ```
 
-4. **Initialize SQLite database (one-time setup):**
+4. **Set up PostgreSQL Database (Cloud Service):**
+   
+   **Option A: Use a Free Cloud PostgreSQL Service (Recommended)**
+   
+   Choose one of these free PostgreSQL hosting services:
+   - **Render** (https://render.com) - Free tier available
+   - **Supabase** (https://supabase.com) - Free tier available  
+   - **ElephantSQL** (https://www.elephantsql.com) - Free tier available
+   - **Neon** (https://neon.tech) - Free tier available
+   
+   **Steps:**
+   1. Sign up for a free account on one of the services above
+   2. Create a new PostgreSQL database
+   3. Copy the connection string (usually provided in the dashboard)
+   4. Create a `.env` file in the `backend/` directory:
+      ```env
+      DATABASE_URL=postgresql://username:password@host:port/database
+      ```
+      Replace with your actual connection string from the cloud service.
+   
+   **Option B: Use Local PostgreSQL**
+   
+   If you prefer to run PostgreSQL locally:
+   1. Install PostgreSQL from https://www.postgresql.org/download/
+   2. Create a database: `CREATE DATABASE sentinel_db;`
+   3. Update `backend/database.py` line 26 with your credentials, or create a `.env` file:
+      ```env
+      DATABASE_URL=postgresql://postgres:your_password@localhost:5432/sentinel_db
+      ```
+
+5. **Initialize Database Tables:**
    ```bash
-   # SQLite is built into Python - no installation needed!
-   # Just run this once to create the database file
+   # Run this once to create the database tables
    python init_database.py
    ```
    
-   This creates `backend/sentinel.db` automatically. That's it! No server setup needed.
+   You should see:
+   ```
+   ✅ Database initialized successfully!
+   📊 Database: your-database-host
+   Tables created:
+     - training_data_uploads
+     - retraining_sessions
+   ```
    
-   **Note:** The database file will be created automatically on first run if you skip this step.
+   **Note:** Make sure your `DATABASE_URL` is set correctly before running this command.
 
-5. **Prepare training data:**
+6. **Prepare training data:**
    - Create `backend/data/safe/` directory and add safe audio files (.wav)
    - Create `backend/data/danger/` directory and add danger audio files (.wav)
 
-6. **Run the API server:**
+7. **Run the API server:**
    ```bash
    uvicorn app:app --host 0.0.0.0 --port 8000 --reload
    ```
@@ -161,12 +197,13 @@ Sentinel-End-to-End-MLOps/
    docker run -p 8000:8000 \
      -v $(pwd)/backend/data:/app/backend/data \
      -v $(pwd)/backend/models:/app/backend/models \
-     -v $(pwd)/backend/sentinel.db:/app/backend/sentinel.db \
+     -e DATABASE_URL="postgresql://username:password@host:port/database" \
      sentinel-backend
    ```
    
-   **Note:** SQLite database file is stored in `backend/sentinel.db`. 
-   The volume mount ensures the database persists between container restarts.
+   **Note:** Make sure to set the `DATABASE_URL` environment variable with your PostgreSQL connection string.
+   You can also use a `.env` file or Docker Compose for easier configuration.
+   The volume mounts ensure data and models persist between container restarts.
 
 ## 📡 API Endpoints
 
@@ -197,7 +234,7 @@ Upload an audio file for prediction.
 ```
 
 ### `POST /retrain`
-Trigger model retraining with uploaded zip file. Saves data to SQLite database.
+Trigger model retraining with uploaded zip file. Saves data to PostgreSQL database.
 
 **Request:**
 - Content-Type: `multipart/form-data`
@@ -207,7 +244,7 @@ Trigger model retraining with uploaded zip file. Saves data to SQLite database.
 ```json
 {
   "status": "Retraining Initiated",
-  "message": "File saved to SQLite database (Upload ID: 1, Session ID: 1). Training pipeline started in background.",
+  "message": "File saved to PostgreSQL database (Upload ID: 1, Session ID: 1). Training pipeline started in background.",
   "training_started": true,
   "upload_id": 1,
   "session_id": 1
@@ -215,12 +252,12 @@ Trigger model retraining with uploaded zip file. Saves data to SQLite database.
 ```
 
 **Process:**
-1. Upload zip file → Saved to filesystem and SQLite database
+1. Upload zip file → Saved to filesystem and PostgreSQL database
 2. Extract and organize files into safe/danger directories
 3. Preprocess audio files (convert to spectrograms)
 4. Retrain model using existing model as base
 5. Save retrained model
-6. All steps logged to SQLite database (upload metadata, training metrics, etc.)
+6. All steps logged to PostgreSQL database (upload metadata, training metrics, etc.)
 
 ## 🧪 Load Testing
 

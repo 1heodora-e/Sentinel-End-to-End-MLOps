@@ -3,20 +3,34 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, D
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-import tensorflow as tf
-from tensorflow.keras.preprocessing import image
-import numpy as np
-import shutil
 import os
 import sys
 import zipfile
 
+# Configure TensorFlow memory before importing (prevents OOM crashes)
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  # Reduce TensorFlow logging
+os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"  # Prevent GPU memory pre-allocation
+
+import tensorflow as tf
+
+# Limit TensorFlow memory growth to prevent OOM on limited resources
+try:
+    gpus = tf.config.list_physical_devices("GPU")
+    if gpus:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+except Exception:
+    pass  # No GPU available, continue with CPU
+
+from tensorflow.keras.preprocessing import image
+import numpy as np
+import shutil
+
 # Add paths for imports
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))  # backend/
 sys.path.append(base_dir)  # project root
 
-from preprocessing import create_spectrogram
+from src.preprocessing import create_spectrogram
 from src.model import train_model
 from database import (
     init_db,
@@ -37,7 +51,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-MODEL_PATH = "models/sentinel_model.h5"
+# Use absolute path for model to work in any environment
+_backend_dir = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(_backend_dir, "models", "sentinel_model.h5")
 model = None
 is_training = False
 training_status = {
@@ -51,9 +67,7 @@ training_status = {
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database and load model on startup."""
-    global model
-
+    """Initialize database on startup. Model will be loaded lazily on first request."""
     # Initialize database tables (optional - graceful degradation if DB unavailable)
     try:
         init_db()
@@ -65,13 +79,28 @@ async def startup_event():
             "⚠️ To enable database: Set DATABASE_URL environment variable for PostgreSQL connection"
         )
 
-    # Load model
-    try:
-        if os.path.exists(MODEL_PATH):
-            model = tf.keras.models.load_model(MODEL_PATH)
-            print(f"✅ Model loaded from {MODEL_PATH}")
-    except Exception as e:
-        print(f"❌ Error loading model: {e}")
+    # Model will be loaded lazily on first request to save memory during startup
+    print("⚠️ Model will be loaded on first request to optimize memory usage")
+
+
+def get_model():
+    """
+    Lazy load model on first request to prevent memory issues during startup.
+    This prevents OOM crashes on platforms with limited RAM (e.g., Render free tier).
+    """
+    global model
+    if model is None:
+        try:
+            if os.path.exists(MODEL_PATH):
+                print(f"📦 Loading model from {MODEL_PATH}...")
+                model = tf.keras.models.load_model(MODEL_PATH)
+                print(f"✅ Model loaded from {MODEL_PATH}")
+            else:
+                raise FileNotFoundError(f"Model file not found: {MODEL_PATH}")
+        except Exception as e:
+            print(f"❌ Error loading model: {e}")
+            raise
+    return model
 
 
 @app.get("/health")
@@ -92,8 +121,11 @@ def model_status():
 async def predict_audio_endpoint(file: UploadFile = File(...)):
     print(f"\n--- ⚡ Processing: {file.filename} ---")
 
-    if model is None:
-        raise HTTPException(status_code=503, detail="Model not loaded")
+    # Load model if not already loaded (lazy loading)
+    try:
+        current_model = get_model()
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Model not available: {str(e)}")
 
     # Use Absolute Paths
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -123,7 +155,7 @@ async def predict_audio_endpoint(file: UploadFile = File(...)):
         x = np.expand_dims(x, axis=0)
 
         print("4. Running Model...")
-        prediction = model.predict(x, verbose=0)[0][0]
+        prediction = current_model.predict(x, verbose=0)[0][0]
 
         print(f"📢 DEBUG SCORE: {prediction}")
 
@@ -283,6 +315,9 @@ def retrain_model_background(zip_path, upload_dir, data_dir, upload_id, session_
 
         update_retraining_session(db, session_id, status="training")
 
+        # Ensure model is loaded before retraining
+        current_model = get_model() if model is None else model
+
         # Use existing model for retraining
         retrained_model, history = train_model(
             data_dir=data_dir,
@@ -290,7 +325,7 @@ def retrain_model_background(zip_path, upload_dir, data_dir, upload_id, session_
             epochs=10,
             batch_size=32,
             validation_split=0.2,
-            existing_model=model,
+            existing_model=current_model,
         )
 
         # Reload model
@@ -377,8 +412,13 @@ async def retrain_trigger(
             status_code=409, detail="Model is already training. Please wait."
         )
 
-    if model is None:
-        raise HTTPException(status_code=503, detail="No model loaded. Cannot retrain.")
+    # Load model if not already loaded (lazy loading)
+    try:
+        get_model()  # Ensure model is loaded
+    except Exception as e:
+        raise HTTPException(
+            status_code=503, detail=f"Model not available. Cannot retrain: {str(e)}"
+        )
 
     # 1. Save file to filesystem
     base_dir = os.path.dirname(os.path.abspath(__file__))
