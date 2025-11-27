@@ -351,10 +351,12 @@ def retrain_model_background(zip_path, upload_dir, data_dir, upload_id, session_
         extract_dir = os.path.join(upload_dir, "extracted")
         safe_dir, danger_dir = extract_and_organize_zip(zip_path, extract_dir)
 
-        # Count files
-        safe_files = [f for f in os.listdir(safe_dir) if f.endswith((".wav", ".mp3"))]
+        # Count files - Case Insensitive
+        safe_files = [
+            f for f in os.listdir(safe_dir) if f.lower().endswith((".wav", ".mp3"))
+        ]
         danger_files = [
-            f for f in os.listdir(danger_dir) if f.endswith((".wav", ".mp3"))
+            f for f in os.listdir(danger_dir) if f.lower().endswith((".wav", ".mp3"))
         ]
         total_files = len(safe_files) + len(danger_files)
 

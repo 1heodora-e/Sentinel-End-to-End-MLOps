@@ -158,8 +158,8 @@ def prepare_data_from_directories(data_dir, validation_split=0.2):
     safe_dir = data_path / "safe"
     danger_dir = data_path / "danger"
 
-    # Collect all audio files
-    extensions = ["*.wav", "*.mp3"]
+    # Collect all audio files - Case Insensitive
+    extensions = ["*.wav", "*.WAV", "*.mp3", "*.MP3"]
     safe_files = []
     danger_files = []
 
