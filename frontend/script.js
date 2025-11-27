@@ -497,7 +497,27 @@ predictBtn.addEventListener('click', async () => {
             body: formData
         });
 
+        // Parse response once
         const data = await response.json();
+        
+        // Debug: Log the response
+        console.log("API Response:", data);
+        
+        // Check if response is OK
+        if (!response.ok) {
+            throw new Error(data.error || data.detail || `HTTP error! status: ${response.status}`);
+        }
+        
+        // Check if response has error
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        
+        // Validate required fields
+        if (!data.prediction || data.confidence === undefined) {
+            console.error("Invalid response structure:", data);
+            throw new Error("Invalid response from server. Missing prediction or confidence.");
+        }
         
         // Update UI based on Python response
         const isDanger = data.prediction === "Danger";
@@ -507,19 +527,37 @@ predictBtn.addEventListener('click', async () => {
         statusIcon.textContent = isDanger ? "⚠️" : "✅";
         statusIcon.className = `status-icon ${isDanger ? 'danger' : 'safe'}`;
         
-        // Confidence
-        const conf = data.confidence;
-        confidenceValue.textContent = `${conf}%`;
-        confidenceFill.style.width = `${conf}%`;
-        confidenceFill.className = `confidence-fill ${isDanger ? 'danger' : 'safe'}`;
+        // Confidence - ensure it's a valid number
+        const conf = data.confidence !== undefined && data.confidence !== null 
+            ? parseFloat(data.confidence) 
+            : 0;
+        
+        if (isNaN(conf)) {
+            console.error("Invalid confidence value:", data.confidence);
+            confidenceValue.textContent = "N/A";
+            confidenceFill.style.width = "0%";
+        } else {
+            confidenceValue.textContent = `${Math.round(conf)}%`;
+            confidenceFill.style.width = `${Math.round(conf)}%`;
+            confidenceFill.className = `confidence-fill ${isDanger ? 'danger' : 'safe'}`;
 
-        // Update confidence distribution chart and stats
-        updateConfidenceChart(conf);
-        updateStats(conf);
+            // Update confidence distribution chart and stats
+            updateConfidenceChart(Math.round(conf));
+            updateStats(Math.round(conf));
+        }
 
     } catch (error) {
-        alert("Error connecting to Sentinel Brain. Is Uvicorn running?");
-        console.error(error);
+        console.error("Prediction error:", error);
+        console.error("Response data:", error.response || "No response data");
+        alert(`Error: ${error.message || "Failed to connect to API. Please check if the backend is running."}`);
+        
+        // Reset UI on error
+        statusTitle.textContent = "Error";
+        statusSubtitle.textContent = "Failed to analyze audio file.";
+        statusIcon.textContent = "❌";
+        statusIcon.className = "status-icon error";
+        confidenceValue.textContent = "N/A";
+        confidenceFill.style.width = "0%";
     }
 });
 
