@@ -102,12 +102,13 @@
                 <div class="card">
                     <h2 class="section-title">Upload Audio File</h2>
                     <div class="upload-area" id="uploadArea">
-                        <input type="file" id="audioFile" accept=".wav,.mp3,.flac,.ogg,.m4a" hidden>
+                        <input type="file" id="audioFile" accept=".wav,.mp3" hidden>
                         <div class="upload-content">
                             <span class="upload-icon">📁</span>
                             <p class="upload-text">Drag and drop your audio file here, or <strong class="browse-link">browse</strong></p>
-                            <p class="upload-hint">Supported formats: WAV, MP3, FLAC, OGG, M4A (max 10MB)</p>
+                            <p class="upload-hint">Supported formats: WAV, MP3 only (max 10MB)</p>
                         </div>
+                        <div id="fileFormatError" class="error-message" style="display: none;"></div>
                     </div>
                     <div id="fileName" class="file-name"></div>
                     <button id="predictBtn" class="btn btn-primary" disabled>Analyze Audio</button>

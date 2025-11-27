@@ -33,8 +33,10 @@ const tabContents = document.querySelectorAll('.tab-content');
 
 // Chart instances
 let dataChart, trainingChart, confidenceChart, classDistributionChart, featureAnalysisChart;
-let confidenceHistory = []; // Store prediction confidences
-let totalPredictions = 0;
+
+// Load from localStorage to persist across page refreshes
+let confidenceHistory = JSON.parse(localStorage.getItem('confidenceHistory') || '[]');
+let totalPredictions = parseInt(localStorage.getItem('totalPredictions') || '0', 10);
 
 // Initialize all charts and check model status
 document.addEventListener('DOMContentLoaded', () => {
@@ -42,7 +44,11 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeNavigation();
     initializeTabs();
     checkModelStatus();
+    
+    // Initialize stats from localStorage (without incrementing)
+    updateStats(); // Pass undefined to just update display
     updateHomeStats();
+    
     setInterval(checkModelStatus, 5000); // Check every 5 seconds
     setInterval(updateHomeStats, 5000); // Update home stats every 5 seconds
 });
@@ -415,10 +421,22 @@ function updateConfidenceChart(confidence) {
 
 // Update Stats
 function updateStats(confidence) {
-    totalPredictions++;
+    // Only increment if a valid confidence is provided (not during initialization)
+    if (confidence !== undefined && confidence !== null && confidence > 0) {
+        totalPredictions++;
+        // Save to localStorage to persist across page refreshes
+        localStorage.setItem('totalPredictions', totalPredictions.toString());
+    } else {
+        // Just update display with existing values (initialization)
+        localStorage.setItem('totalPredictions', totalPredictions.toString());
+    }
+    
     const avgConfidence = confidenceHistory.length > 0 
         ? Math.round(confidenceHistory.reduce((a, b) => a + b, 0) / confidenceHistory.length)
         : 0;
+    
+    // Save confidence history to localStorage
+    localStorage.setItem('confidenceHistory', JSON.stringify(confidenceHistory));
     
     const totalPredictionsEl = document.getElementById('totalPredictions');
     const avgConfidenceEl = document.getElementById('avgConfidence');
@@ -446,12 +464,43 @@ function updateHomeStats() {
 }
 
 // 2. File Upload Logic (Predict Page)
+const fileFormatError = document.getElementById('fileFormatError');
+
+function validateAudioFile(file) {
+    const allowedExtensions = ['.wav', '.mp3'];
+    const fileName = file.name.toLowerCase();
+    const isValid = allowedExtensions.some(ext => fileName.endsWith(ext));
+    
+    if (!isValid) {
+        fileFormatError.textContent = `❌ Unsupported file format. Please upload only WAV or MP3 files.`;
+        fileFormatError.style.display = 'block';
+        fileFormatError.style.color = '#FF6961';
+        fileFormatError.style.marginTop = '10px';
+        fileFormatError.style.padding = '10px';
+        fileFormatError.style.borderRadius = '8px';
+        fileFormatError.style.backgroundColor = 'rgba(255, 105, 97, 0.1)';
+        return false;
+    }
+    
+    fileFormatError.style.display = 'none';
+    return true;
+}
+
 uploadArea.addEventListener('click', () => audioFileInput.click());
 audioFileInput.addEventListener('change', (e) => {
-    if (e.target.files[0]) {
-        fileName.textContent = `Selected: ${e.target.files[0].name}`;
-        fileName.classList.add('show');
-        predictBtn.disabled = false;
+    const file = e.target.files[0];
+    if (file) {
+        if (validateAudioFile(file)) {
+            fileName.textContent = `Selected: ${file.name}`;
+            fileName.classList.add('show');
+            predictBtn.disabled = false;
+        } else {
+            // Clear the file input
+            audioFileInput.value = '';
+            fileName.textContent = '';
+            fileName.classList.remove('show');
+            predictBtn.disabled = true;
+        }
     }
 });
 
@@ -469,11 +518,24 @@ uploadArea.addEventListener('drop', (e) => {
     e.preventDefault();
     uploadArea.classList.remove('dragover');
     const files = e.dataTransfer.files;
-    if (files.length > 0 && files[0].type.startsWith('audio/')) {
-        audioFileInput.files = files;
-        fileName.textContent = `Selected: ${files[0].name}`;
-        fileName.classList.add('show');
-        predictBtn.disabled = false;
+    if (files.length > 0) {
+        const file = files[0];
+        if (validateAudioFile(file)) {
+            // Create a new FileList-like object for the input
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            audioFileInput.files = dataTransfer.files;
+            
+            fileName.textContent = `Selected: ${file.name}`;
+            fileName.classList.add('show');
+            predictBtn.disabled = false;
+        } else {
+            // Clear any previous selection
+            audioFileInput.value = '';
+            fileName.textContent = '';
+            fileName.classList.remove('show');
+            predictBtn.disabled = true;
+        }
     }
 });
 
@@ -481,6 +543,11 @@ uploadArea.addEventListener('drop', (e) => {
 predictBtn.addEventListener('click', async () => {
     const file = audioFileInput.files[0];
     if (!file) return;
+    
+    // Validate file format before sending
+    if (!validateAudioFile(file)) {
+        return;
+    }
 
     // Show Loading
     resultsSection.style.display = 'block';
