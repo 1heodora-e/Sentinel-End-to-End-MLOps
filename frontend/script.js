@@ -217,7 +217,7 @@ function initializeCharts() {
                 }
             }
         }
-    });
+});
 
     // Class Distribution Comparison Chart
     const classDistCtx = document.getElementById('classDistributionChart').getContext('2d');
@@ -527,8 +527,8 @@ uploadArea.addEventListener('drop', (e) => {
             audioFileInput.files = dataTransfer.files;
             
             fileName.textContent = `Selected: ${file.name}`;
-            fileName.classList.add('show');
-            predictBtn.disabled = false;
+        fileName.classList.add('show');
+        predictBtn.disabled = false;
         } else {
             // Clear any previous selection
             audioFileInput.value = '';

@@ -23,6 +23,9 @@ COPY backend/ ./backend/
 # Create necessary directories
 RUN mkdir -p backend/data/safe backend/data/danger backend/models
 
+# Make start script executable
+RUN chmod +x backend/start.sh
+
 # Set TensorFlow environment variables for CPU-only execution
 # These prevent CUDA initialization errors on CPU-only systems (e.g., Render)
 ENV CUDA_VISIBLE_DEVICES=-1
@@ -37,6 +40,5 @@ EXPOSE 8000
 # Set working directory to backend
 WORKDIR /app/backend
 
-# Run the application (Render sets PORT automatically)
-CMD ["sh", "-c", "uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000}"]
-
+# Run the application using the wrapper script
+CMD ["./start.sh"]
