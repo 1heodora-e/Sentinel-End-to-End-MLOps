@@ -326,6 +326,20 @@ async function checkModelStatus() {
             modelLoadedStatus.className = `status-indicator ${data.model_loaded ? "online" : "offline"}`;
         }
         
+        // Update Model Accuracy (if available)
+        if (data.model_accuracy !== null && data.model_accuracy !== undefined) {
+            const accuracyPercent = Math.round(data.model_accuracy * 100);
+            const modelAccuracyEl = document.getElementById('modelAccuracy');
+            const homeAccuracyEl = document.getElementById('homeAccuracy');
+            
+            if (modelAccuracyEl) {
+                modelAccuracyEl.textContent = `${accuracyPercent}%`;
+            }
+            if (homeAccuracyEl) {
+                homeAccuracyEl.textContent = `${accuracyPercent}%`;
+            }
+        }
+        
         // Update Training Status
         if (trainingStatus) {
             if (data.is_training) {
@@ -426,7 +440,7 @@ function updateHomeStats() {
     
     if (homeTotalEl) homeTotalEl.textContent = totalPredictions.toLocaleString();
     if (homeConfidenceEl) homeConfidenceEl.textContent = `${avgConfidence}%`;
-    // Accuracy stays at 75% as it's model accuracy, not prediction accuracy
+    // Model accuracy is updated by checkModelStatus() from API
 }
 
 // 2. File Upload Logic (Predict Page)

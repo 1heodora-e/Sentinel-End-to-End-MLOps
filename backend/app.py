@@ -120,10 +120,40 @@ def health_check():
 
 @app.get("/model/status")
 def model_status():
+    """Get model status including accuracy from metadata."""
+    model_accuracy = None
+
+    # Try to read accuracy from model metadata
+    # Check both possible metadata file names
+    metadata_paths = [
+        MODEL_PATH.replace(".h5", "_metadata.json"),  # sentinel_model_metadata.json
+        os.path.join(
+            os.path.dirname(MODEL_PATH), "model_metadata.json"
+        ),  # model_metadata.json
+    ]
+
+    for metadata_path in metadata_paths:
+        if os.path.exists(metadata_path):
+            try:
+                import json
+
+                with open(metadata_path, "r") as f:
+                    metadata = json.load(f)
+                    # Use validation accuracy as the model accuracy (prefer last_val_accuracy, fallback to final_val_accuracy)
+                    model_accuracy = metadata.get("last_val_accuracy") or metadata.get(
+                        "final_val_accuracy"
+                    )
+                    if model_accuracy is not None:
+                        break  # Found accuracy, stop searching
+            except Exception as e:
+                print(f"Error reading model metadata from {metadata_path}: {e}")
+                continue
+
     return {
         "model_loaded": model is not None,
         "is_training": is_training,
         "training_status": training_status,
+        "model_accuracy": model_accuracy,  # Accuracy as float (0.0 to 1.0)
     }
 
 
