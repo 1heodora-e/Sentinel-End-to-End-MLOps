@@ -6,7 +6,7 @@ Sentinel is an end-to-end Machine Learning pipeline that detects danger (screams
 
 ## 📹 Video Demo
 
-**YouTube Link:** [Add your video demo link here](https://youtube.com)
+**YouTube Link:** (https://www.youtube.com/watch?v=dqbG-XV6Vh8)
 
 ## 🌐 Live Deployment
 
@@ -415,6 +415,4 @@ The frontend includes three key visualizations with interpretations:
 
 MIT License
 
----
 
-**Built with ❤️ for sophisticated safety**
