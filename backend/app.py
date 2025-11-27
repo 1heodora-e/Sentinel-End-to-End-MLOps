@@ -3,6 +3,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, D
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
+
 # DO NOT import tensorflow here - it will initialize CUDA
 import numpy as np
 import shutil
@@ -14,8 +15,11 @@ import zipfile
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  # Reduce TensorFlow logging
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"  # Prevent GPU memory pre-allocation
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Disable CUDA/GPU (CPU-only deployment)
-os.environ["TF_XLA_FLAGS"] = "--tf_xla_cpu_global_jit=false"  # Disable XLA JIT compilation
+os.environ["TF_XLA_FLAGS"] = (
+    "--tf_xla_cpu_global_jit=false"  # Disable XLA JIT compilation
+)
 os.environ["TF_DISABLE_XLA"] = "1"  # Disable XLA entirely
+os.environ["TF_USE_CUSTOM_MEMORY_ALLOCATOR"] = "0"
 
 # NOW import TensorFlow after environment variables are set
 import tensorflow as tf
