@@ -22,12 +22,18 @@ except ImportError:
 # Format: postgresql://username:password@host:port/database
 # Default to a local PostgreSQL instance
 DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://postgres:postgres@localhost:5432/sentinel_db"
+    "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/sentinel_db"
 )
 
-# Create engine
-engine = create_engine(DATABASE_URL)
+# Create engine with connection pooling to reduce memory conflicts
+engine = create_engine(
+    DATABASE_URL,
+    pool_size=5,  # Limit connection pool size
+    max_overflow=10,
+    pool_pre_ping=True,  # Verify connections before using
+    pool_recycle=3600,  # Recycle connections after 1 hour
+    echo=False,  # Don't echo SQL queries
+)
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -46,7 +52,9 @@ class TrainingDataUpload(Base):
     file_path = Column(String(500), nullable=False)
     file_size = Column(Integer, nullable=False)  # Size in bytes
     upload_timestamp = Column(DateTime, default=datetime.utcnow)
-    status = Column(String(50), default="pending")  # pending, processing, completed, failed
+    status = Column(
+        String(50), default="pending"
+    )  # pending, processing, completed, failed
     safe_count = Column(Integer, default=0)
     danger_count = Column(Integer, default=0)
     total_count = Column(Integer, default=0)
@@ -62,7 +70,9 @@ class RetrainingSession(Base):
     upload_id = Column(Integer, nullable=False)  # Foreign key to training_data_uploads
     start_timestamp = Column(DateTime, default=datetime.utcnow)
     end_timestamp = Column(DateTime, nullable=True)
-    status = Column(String(50), default="pending")  # pending, preprocessing, training, completed, failed
+    status = Column(
+        String(50), default="pending"
+    )  # pending, preprocessing, training, completed, failed
     epochs = Column(Integer, default=10)
     final_accuracy = Column(Float, nullable=True)
     final_val_accuracy = Column(Float, nullable=True)
@@ -77,7 +87,9 @@ def init_db():
     try:
         Base.metadata.create_all(bind=engine)
         print("✅ Database tables created successfully!")
-        print(f"📊 Database: {DATABASE_URL.split('@')[-1] if '@' in DATABASE_URL else DATABASE_URL}")
+        print(
+            f"📊 Database: {DATABASE_URL.split('@')[-1] if '@' in DATABASE_URL else DATABASE_URL}"
+        )
     except Exception as e:
         print(f"❌ Error creating database tables: {e}")
         print("\n💡 Make sure PostgreSQL is running and DATABASE_URL is correct.")
@@ -97,10 +109,7 @@ def get_db():
 def create_upload_record(db, filename, file_path, file_size):
     """Create a new upload record."""
     upload = TrainingDataUpload(
-        filename=filename,
-        file_path=file_path,
-        file_size=file_size,
-        status="pending"
+        filename=filename, file_path=file_path, file_size=file_size, status="pending"
     )
     db.add(upload)
     db.commit()
@@ -108,9 +117,13 @@ def create_upload_record(db, filename, file_path, file_size):
     return upload
 
 
-def update_upload_status(db, upload_id, status=None, safe_count=None, danger_count=None, total_count=None):
+def update_upload_status(
+    db, upload_id, status=None, safe_count=None, danger_count=None, total_count=None
+):
     """Update upload status and counts."""
-    upload = db.query(TrainingDataUpload).filter(TrainingDataUpload.id == upload_id).first()
+    upload = (
+        db.query(TrainingDataUpload).filter(TrainingDataUpload.id == upload_id).first()
+    )
     if upload:
         if status:
             upload.status = status
@@ -127,11 +140,7 @@ def update_upload_status(db, upload_id, status=None, safe_count=None, danger_cou
 
 def create_retraining_session(db, upload_id, epochs=10):
     """Create a new retraining session."""
-    session = RetrainingSession(
-        upload_id=upload_id,
-        epochs=epochs,
-        status="pending"
-    )
+    session = RetrainingSession(upload_id=upload_id, epochs=epochs, status="pending")
     db.add(session)
     db.commit()
     db.refresh(session)
@@ -147,10 +156,12 @@ def update_retraining_session(
     final_loss=None,
     final_val_loss=None,
     total_samples=None,
-    error_message=None
+    error_message=None,
 ):
     """Update retraining session with results."""
-    session = db.query(RetrainingSession).filter(RetrainingSession.id == session_id).first()
+    session = (
+        db.query(RetrainingSession).filter(RetrainingSession.id == session_id).first()
+    )
     if session:
         if status:
             session.status = status
