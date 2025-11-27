@@ -8,6 +8,12 @@ import sys
 # These must be set before importing tensorflow or numpy
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
+os.environ["TF_XLA_FLAGS"] = "--tf_xla_cpu_global_jit=false"
+os.environ["TF_DISABLE_XLA"] = "1"
+os.environ["TF_USE_CUDA"] = "0"
+os.environ["TF_USE_GPU"] = "0"
+os.environ["TF_DETERMINISTIC_OPS"] = "1"
 
 # Add current directory to path so we can import local modules later
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -57,6 +63,25 @@ app.add_middleware(
 MODEL_PATH = os.path.join(base_dir, "models", "sentinel_model.h5")
 model = None
 
+def get_model():
+    """
+    Lazy load model on first request to prevent memory issues during startup.
+    This prevents segmentation faults on CPU-only systems.
+    """
+    global model
+    if model is None:
+        try:
+            if os.path.exists(MODEL_PATH):
+                print(f"📦 Loading model from {MODEL_PATH}...")
+                model = tf.keras.models.load_model(MODEL_PATH)
+                print(f"✅ Model loaded successfully!")
+            else:
+                raise FileNotFoundError(f"Model file not found: {MODEL_PATH}")
+        except Exception as e:
+            print(f"❌ Error loading model: {e}")
+            raise
+    return model
+
 @app.on_event("startup")
 async def startup_event():
     # 1. Init DB
@@ -66,17 +91,8 @@ async def startup_event():
     except Exception as e:
         print(f"⚠️ DB Init Warning: {e}")
 
-    # 2. Load Model (Lazy loading prevented crashes, but let's try eager loading now that CPU is forced)
-    global model
-    try:
-        if os.path.exists(MODEL_PATH):
-            print(f"📦 Loading model from {MODEL_PATH}...")
-            model = tf.keras.models.load_model(MODEL_PATH)
-            print(f"✅ Model loaded successfully!")
-        else:
-            print(f"❌ Model file missing at {MODEL_PATH}")
-    except Exception as e:
-        print(f"❌ Error loading model: {e}")
+    # 2. DO NOT load model at startup - use lazy loading instead
+    print("⚠️ Model will be loaded on first request to prevent startup crashes")
 
 @app.get("/health")
 def health_check():
@@ -84,14 +100,24 @@ def health_check():
 
 @app.get("/model/status")
 def model_status():
+    """Get model status. Will attempt to load model if not already loaded."""
+    global model
+    if model is None:
+        try:
+            get_model()  # Try to load model for status check
+        except Exception as e:
+            print(f"⚠️ Model not available: {e}")
     return {"model_loaded": model is not None}
 
 @app.post("/predict")
 async def predict_audio(file: UploadFile = File(...)):
     print(f"\n--- ⚡ Processing: {file.filename} ---")
     
-    if model is None:
-        raise HTTPException(status_code=503, detail="Model not loaded")
+    # Load model lazily on first request
+    try:
+        current_model = get_model()
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Model not available: {str(e)}")
 
     # Define temporary paths using absolute paths
     temp_dir = os.path.join(base_dir, "temp_data")
@@ -118,7 +144,7 @@ async def predict_audio(file: UploadFile = File(...)):
         x = image.img_to_array(img) / 255.0
         x = np.expand_dims(x, axis=0)
         
-        prediction = model.predict(x, verbose=0)[0][0]
+        prediction = current_model.predict(x, verbose=0)[0][0]
         print(f"📢 DEBUG SCORE: {prediction}")
 
         # Logic: > 0.5 is Danger
