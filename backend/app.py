@@ -263,58 +263,67 @@ async def predict_audio_endpoint(file: UploadFile = File(...)):
 def extract_and_organize_zip(zip_path, extract_dir):
     """
     Extract zip file and organize audio files into safe/ and danger/ directories.
-    Expected zip structure:
-    - zip contains files directly, or
-    - zip contains safe/ and danger/ subdirectories
+    Handles nested zip structures recursively.
     """
     os.makedirs(extract_dir, exist_ok=True)
-    safe_dir = os.path.join(extract_dir, "safe")
-    danger_dir = os.path.join(extract_dir, "danger")
-    os.makedirs(safe_dir, exist_ok=True)
-    os.makedirs(danger_dir, exist_ok=True)
+
+    # Final destination for organized files within the extraction area
+    final_safe_dir = os.path.join(extract_dir, "safe")
+    final_danger_dir = os.path.join(extract_dir, "danger")
+    os.makedirs(final_safe_dir, exist_ok=True)
+    os.makedirs(final_danger_dir, exist_ok=True)
 
     with zipfile.ZipFile(zip_path, "r") as zip_ref:
         zip_ref.extractall(extract_dir)
 
-    # Organize files
-    extracted_files = []
+    print(f"📂 Extracted zip to {extract_dir}")
+
+    # Walk through all extracted files recursively
+    audio_extensions = (".wav", ".mp3", ".flac", ".ogg", ".m4a")
+    found_files = 0
+
     for root, dirs, files in os.walk(extract_dir):
+        # Skip the final safe/danger dirs we just created to avoid self-copying loop
+        if root == final_safe_dir or root == final_danger_dir:
+            continue
+
         for file in files:
-            if file.lower().endswith((".wav", ".mp3", ".flac", ".ogg", ".m4a")):
-                extracted_files.append(os.path.join(root, file))
+            if file.lower().endswith(audio_extensions):
+                src_path = os.path.join(root, file)
+                found_files += 1
 
-    # If zip already has safe/danger structure, keep it
-    if os.path.exists(os.path.join(extract_dir, "safe")) and os.path.exists(
-        os.path.join(extract_dir, "danger")
-    ):
-        print("Zip already contains safe/ and danger/ directories")
-        return safe_dir, danger_dir
+                # Determine destination
+                # 1. Check if file is already in a 'safe' or 'danger' folder
+                parent_folder = os.path.basename(root).lower()
+                filename = file.lower()
 
-    # Otherwise, organize by filename patterns (simple heuristic)
-    # Files with 'danger', 'scream', 'distress' in name -> danger
-    # Others -> safe (or could be split 50/50)
-    for file_path in extracted_files:
-        filename = os.path.basename(file_path).lower()
-        if any(
-            keyword in filename
-            for keyword in ["danger", "scream", "distress", "alarm", "emergency"]
-        ):
-            dest_name = os.path.basename(file_path)
-            # Normalize extension to lowercase
-            name, ext = os.path.splitext(dest_name)
-            dest_name = name + ext.lower()
+                if parent_folder == "safe":
+                    dest_dir = final_safe_dir
+                elif parent_folder == "danger":
+                    dest_dir = final_danger_dir
+                # 2. Check filename keywords
+                elif any(
+                    k in filename
+                    for k in ["danger", "scream", "distress", "alarm", "emergency"]
+                ):
+                    dest_dir = final_danger_dir
+                else:
+                    # Default to safe if ambiguous (or logic dictates)
+                    dest_dir = final_safe_dir
 
-            shutil.move(file_path, os.path.join(danger_dir, dest_name))
-        else:
-            # Default to safe if unclear
-            dest_name = os.path.basename(file_path)
-            # Normalize extension to lowercase
-            name, ext = os.path.splitext(dest_name)
-            dest_name = name + ext.lower()
+                # Handle filename collisions
+                dest_path = os.path.join(dest_dir, file)
+                if os.path.exists(dest_path):
+                    base, ext = os.path.splitext(file)
+                    timestamp = int(os.path.getmtime(src_path))
+                    dest_path = os.path.join(dest_dir, f"{base}_{timestamp}{ext}")
 
-            shutil.move(file_path, os.path.join(safe_dir, dest_name))
+                shutil.move(src_path, dest_path)
 
-    return safe_dir, danger_dir
+    print(
+        f"✅ Organized {found_files} audio files into {final_safe_dir} and {final_danger_dir}"
+    )
+    return final_safe_dir, final_danger_dir
 
 
 def retrain_model_background(zip_path, upload_dir, data_dir, upload_id, session_id):
