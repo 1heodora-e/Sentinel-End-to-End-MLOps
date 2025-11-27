@@ -40,7 +40,7 @@ import shutil
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(base_dir)  # project root
 
-from src.preprocessing import create_spectrogram
+from preprocessing import create_spectrogram
 from src.model import train_model
 from database import (
     init_db,
