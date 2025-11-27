@@ -319,6 +319,13 @@ def retrain_model_background(zip_path, upload_dir, data_dir, upload_id, session_
     db = next(get_db())
 
     try:
+        # Ensure tables exist before trying to use database (lazy initialization)
+        if db is not None:
+            try:
+                init_db()
+            except Exception:
+                pass  # Tables might already exist, continue anyway
+
         is_training = True
         training_status = {
             "status": "preprocessing",
@@ -328,8 +335,9 @@ def retrain_model_background(zip_path, upload_dir, data_dir, upload_id, session_
             "total_epochs": 0,
         }
 
-        # Update session status
-        update_retraining_session(db, session_id, status="preprocessing")
+        # Update session status (only if db is available)
+        if db is not None and session_id is not None:
+            update_retraining_session(db, session_id, status="preprocessing")
 
         # 1. Extract and organize zip file
         extract_dir = os.path.join(upload_dir, "extracted")
@@ -508,6 +516,12 @@ async def retrain_trigger(
         upload_id = None
         session_id = None
         try:
+            # Ensure tables exist before trying to insert (lazy initialization)
+            try:
+                init_db()
+            except Exception:
+                pass  # Tables might already exist, continue anyway
+
             upload_record = create_upload_record(db, file.filename, zip_path, file_size)
             upload_id = upload_record.id
 

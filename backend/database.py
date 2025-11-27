@@ -25,18 +25,33 @@ DATABASE_URL = os.getenv(
     "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/sentinel_db"
 )
 
-# Create engine with connection pooling to reduce memory conflicts
-engine = create_engine(
-    DATABASE_URL,
-    pool_size=5,  # Limit connection pool size
-    max_overflow=10,
-    pool_pre_ping=True,  # Verify connections before using
-    pool_recycle=3600,  # Recycle connections after 1 hour
-    echo=False,  # Don't echo SQL queries
-)
+# Engine and session factory - created lazily to avoid memory conflicts at import time
+_engine = None
+_SessionLocal = None
 
-# Create session factory
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+def _get_engine():
+    """Get or create database engine (lazy initialization)."""
+    global _engine, _SessionLocal
+    if _engine is None:
+        _engine = create_engine(
+            DATABASE_URL,
+            pool_size=5,  # Limit connection pool size
+            max_overflow=10,
+            pool_pre_ping=True,  # Verify connections before using
+            pool_recycle=3600,  # Recycle connections after 1 hour
+            echo=False,  # Don't echo SQL queries
+        )
+        _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=_engine)
+    return _engine
+
+
+def get_session_local():
+    """Get session factory (creates engine if needed)."""
+    if _SessionLocal is None:
+        _get_engine()
+    return _SessionLocal
+
 
 # Base class for models
 Base = declarative_base()
@@ -85,6 +100,7 @@ class RetrainingSession(Base):
 def init_db():
     """Initialize database tables."""
     try:
+        engine = _get_engine()
         Base.metadata.create_all(bind=engine)
         print("✅ Database tables created successfully!")
         print(
@@ -98,6 +114,7 @@ def init_db():
 
 def get_db():
     """Dependency for getting database session."""
+    SessionLocal = get_session_local()
     db = SessionLocal()
     try:
         yield db
