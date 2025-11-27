@@ -65,5 +65,88 @@ def create_spectrogram(audio_path, save_path):
         return False
 
 
+def audio_file_to_image(audio_path):
+    """
+    Convert audio file to PIL Image (in-memory).
+
+    Args:
+        audio_path: Path to input audio file
+
+    Returns:
+        PIL Image object ready for model input
+    """
+    import tempfile
+    import time
+    from PIL import Image
+    import io
+
+    # Use system temp directory instead of data directory to avoid conflicts
+    temp_dir = tempfile.gettempdir()
+    os.makedirs(temp_dir, exist_ok=True)
+    # Use unique filename with timestamp and process ID to avoid conflicts
+    import hashlib
+
+    unique_id = hashlib.md5(
+        f"{time.time()}_{os.getpid()}_{audio_path}".encode()
+    ).hexdigest()[:8]
+    temp_file = os.path.join(temp_dir, f"sentinel_spec_{unique_id}.png")
+
+    try:
+        # Create spectrogram
+        if create_spectrogram(audio_path, temp_file):
+            # Read file into BytesIO buffer first (closes file handle immediately)
+            with open(temp_file, "rb") as f:
+                image_data = f.read()
+
+            # Now we can delete the file since we have the data in memory
+            try:
+                if os.path.exists(temp_file):
+                    os.remove(temp_file)
+            except (PermissionError, OSError):
+                pass  # Ignore cleanup errors on Windows
+
+            # Load image from bytes and ensure RGB mode (3 channels)
+            img = Image.open(io.BytesIO(image_data))
+            # Convert to RGB if not already (handles RGBA, grayscale, etc.)
+            if img.mode != "RGB":
+                img = img.convert("RGB")
+            return img
+        else:
+            raise Exception("Failed to create spectrogram")
+    except Exception as e:
+        # Clean up on error
+        try:
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
+        except (PermissionError, OSError):
+            pass  # Ignore cleanup errors
+        raise e
+
+
+def image_to_array(img):
+    """
+    Convert PIL Image to numpy array normalized for model input.
+
+    Args:
+        img: PIL Image object
+
+    Returns:
+        numpy array with shape (224, 224, 3) normalized to [0, 1]
+    """
+    from tensorflow.keras.preprocessing import image as keras_image
+
+    # Ensure image is RGB mode (3 channels) - convert from RGBA/grayscale/etc to RGB
+    if img.mode != "RGB":
+        img = img.convert("RGB")
+
+    # Resize to model input size
+    img = img.resize((224, 224))
+
+    # Convert to array and normalize
+    img_array = keras_image.img_to_array(img) / 255.0
+
+    return img_array
+
+
 if __name__ == "__main__":
     print("Preprocessing module ready.")
