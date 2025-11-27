@@ -407,7 +407,7 @@ def retrain_model_background(zip_path, upload_dir, data_dir, upload_id, session_
             "message": "Training model...",
             "progress": 50,
             "epoch": 0,
-            "total_epochs": 10,
+            "total_epochs": 3,
         }
 
         update_retraining_session(db, session_id, status="training")
@@ -419,7 +419,7 @@ def retrain_model_background(zip_path, upload_dir, data_dir, upload_id, session_
         retrained_model, history = train_model(
             data_dir=data_dir,
             model_path=MODEL_PATH,
-            epochs=10,
+            epochs=3,
             batch_size=32,
             validation_split=0.2,
             existing_model=current_model,
@@ -459,8 +459,8 @@ def retrain_model_background(zip_path, upload_dir, data_dir, upload_id, session_
             "status": "completed",
             "message": f"Training completed! Final accuracy: {final_val_acc:.2%}",
             "progress": 100,
-            "epoch": 10,
-            "total_epochs": 10,
+            "epoch": 3,
+            "total_epochs": 3,
         }
 
         is_training = False
@@ -549,7 +549,7 @@ async def retrain_trigger(
             upload_id = upload_record.id
 
             # Create retraining session record
-            retraining_session = create_retraining_session(db, upload_id, epochs=10)
+            retraining_session = create_retraining_session(db, upload_id, epochs=3)
             session_id = retraining_session.id
 
             db_message = f"File saved to PostgreSQL database (Upload ID: {upload_id}, Session ID: {session_id})"

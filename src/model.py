@@ -22,6 +22,8 @@ import tensorflow as tf
 # Force CPU-only execution immediately after import
 try:
     tf.config.set_visible_devices([], "GPU")
+    # Enable eager execution to fix "numpy() is only available when eager execution is enabled" error
+    tf.config.run_functions_eagerly(True)
 except Exception:
     pass  # Ignore if already configured
 
