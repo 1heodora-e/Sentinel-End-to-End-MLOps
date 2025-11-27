@@ -1,47 +1,58 @@
 # backend/app.py
-from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
 import os
 import sys
-import zipfile
 
 # ===== CRITICAL: Set TensorFlow environment variables FIRST =====
-# These MUST be set before ANY TensorFlow import to prevent CUDA initialization
+# These MUST be set before ANY other imports to prevent CUDA initialization
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
 os.environ["TF_XLA_FLAGS"] = "--tf_xla_cpu_global_jit=false"
 os.environ["TF_DISABLE_XLA"] = "1"
+# Prevent TensorFlow from loading CUDA libraries
+os.environ["TF_USE_CUDA"] = "0"
+os.environ["TF_USE_GPU"] = "0"
 # ===== END CRITICAL SECTION =====
 
-# NOW import TensorFlow (after environment variables are set)
+# NOW import other standard library modules
+import zipfile
+import shutil
+
+# NOW import TensorFlow (after ALL environment variables are set)
 import tensorflow as tf
 
 # Force CPU-only execution immediately after import
 try:
+    # Hide all GPUs before any operations
     tf.config.set_visible_devices([], "GPU")
-except Exception:
-    pass  # Ignore if already configured
-
-# Additional TensorFlow configuration
-try:
-    gpus = tf.config.list_physical_devices("GPU")
-    if gpus:
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
-except Exception:
+    # Disable GPU memory growth (redundant but safe)
+    physical_devices = tf.config.list_physical_devices("GPU")
+    for device in physical_devices:
+        tf.config.experimental.set_memory_growth(device, True)
+except (ValueError, RuntimeError):
     pass  # No GPU available, continue with CPU
+
+# Additional TensorFlow configuration to prevent CUDA
+try:
+    tf.config.experimental.enable_op_determinism()
+except Exception:
+    pass  # Ignore if not available
+os.environ["TF_DETERMINISTIC_OPS"] = "1"
 
 from tensorflow.keras.preprocessing import image
 import numpy as np
-import shutil
 
 # Add paths for imports
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(base_dir)  # project root
 
+# Import FastAPI and other dependencies AFTER TensorFlow is configured
+from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy.orm import Session
+
+# Import project modules
 from preprocessing import create_spectrogram
 from database import (
     init_db,
