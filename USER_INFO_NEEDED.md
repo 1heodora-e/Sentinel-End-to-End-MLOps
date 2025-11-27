@@ -28,17 +28,17 @@ This document lists all places where you need to add your personal/project infor
 
 **File:** `README.md` (Lines 15-16)
 
-**Status:** ✅ **Backend URL Updated**
+**Status:** ✅ **Both URLs Updated**
 
 **Current:**
 ```markdown
-**Backend API URL:** https://sentinel-end-to-end-mlops-production.up.railway.app  
-**Frontend URL:** [Add your frontend deployment URL here if deployed]
+**Frontend URL:** https://sentinel-end-to-end-ml-ops.vercel.app  
+**Backend API URL:** https://sentinel-end-to-end-mlops-production.up.railway.app
 ```
 
 **Action:** 
 - ✅ **Backend:** Already deployed on Railway
-- **Frontend:** Update with your Vercel/Netlify/GitHub Pages URL if you deploy it separately
+- ✅ **Frontend:** Already deployed on Vercel
 
 ---
 
@@ -83,9 +83,9 @@ const API_BASE_URL = 'https://sentinel-end-to-end-mlops-production.up.railway.ap
 ## ✅ Summary Checklist
 
 - [ ] **Video Demo Link** - Add YouTube link to README.md (Line 9) - **REQUIRED**
-- [ ] **Frontend Deployment URL** - Add to README.md (Line 15) - Optional
-- [ ] **Backend Deployment URL** - Add to README.md (Line 16) - Optional
-- [ ] **API Base URL** - Update frontend/script.js if deploying - Optional
+- [x] **Frontend Deployment URL** - Add to README.md (Line 15) - ✅ **COMPLETED**
+- [x] **Backend Deployment URL** - Add to README.md (Line 16) - ✅ **COMPLETED**
+- [x] **API Base URL** - Update frontend/script.js if deploying - ✅ **COMPLETED**
 - [ ] **Flood Testing Results** - Add screenshots/results - Optional
 
 ---

@@ -124,6 +124,16 @@ def health_check():
 @app.get("/model/status")
 def model_status():
     """Get model status including accuracy from metadata."""
+    global model
+
+    # Try to load model if not already loaded (for status check)
+    if model is None:
+        try:
+            get_model()  # This will load the model if it exists
+        except Exception as e:
+            print(f"⚠️ Model not available: {e}")
+            # Continue to return status even if model can't be loaded
+
     model_accuracy = None
 
     # Try to read accuracy from model metadata
