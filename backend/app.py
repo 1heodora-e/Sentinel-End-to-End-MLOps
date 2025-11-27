@@ -280,7 +280,7 @@ def extract_and_organize_zip(zip_path, extract_dir):
     extracted_files = []
     for root, dirs, files in os.walk(extract_dir):
         for file in files:
-            if file.endswith((".wav", ".mp3", ".flac", ".ogg", ".m4a")):
+            if file.lower().endswith((".wav", ".mp3", ".flac", ".ogg", ".m4a")):
                 extracted_files.append(os.path.join(root, file))
 
     # If zip already has safe/danger structure, keep it
@@ -299,12 +299,20 @@ def extract_and_organize_zip(zip_path, extract_dir):
             keyword in filename
             for keyword in ["danger", "scream", "distress", "alarm", "emergency"]
         ):
-            shutil.move(
-                file_path, os.path.join(danger_dir, os.path.basename(file_path))
-            )
+            dest_name = os.path.basename(file_path)
+            # Normalize extension to lowercase
+            name, ext = os.path.splitext(dest_name)
+            dest_name = name + ext.lower()
+
+            shutil.move(file_path, os.path.join(danger_dir, dest_name))
         else:
             # Default to safe if unclear
-            shutil.move(file_path, os.path.join(safe_dir, os.path.basename(file_path)))
+            dest_name = os.path.basename(file_path)
+            # Normalize extension to lowercase
+            name, ext = os.path.splitext(dest_name)
+            dest_name = name + ext.lower()
+
+            shutil.move(file_path, os.path.join(safe_dir, dest_name))
 
     return safe_dir, danger_dir
 
@@ -344,8 +352,10 @@ def retrain_model_background(zip_path, upload_dir, data_dir, upload_id, session_
         safe_dir, danger_dir = extract_and_organize_zip(zip_path, extract_dir)
 
         # Count files
-        safe_files = [f for f in os.listdir(safe_dir) if f.endswith((".wav"))]
-        danger_files = [f for f in os.listdir(danger_dir) if f.endswith((".wav"))]
+        safe_files = [f for f in os.listdir(safe_dir) if f.endswith((".wav", ".mp3"))]
+        danger_files = [
+            f for f in os.listdir(danger_dir) if f.endswith((".wav", ".mp3"))
+        ]
         total_files = len(safe_files) + len(danger_files)
 
         # Update upload record with file counts
@@ -449,8 +459,10 @@ def retrain_model_background(zip_path, upload_dir, data_dir, upload_id, session_
         error_msg = str(e)
 
         # Update database with error
-        update_retraining_session(db, session_id, status="failed", error=error_msg)
-        update_upload_status(db, upload_id, status="failed", error=error_msg)
+        update_retraining_session(
+            db, session_id, status="failed", error_message=error_msg
+        )
+        update_upload_status(db, upload_id, status="failed", error_message=error_msg)
 
         training_status = {
             "status": "error",

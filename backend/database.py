@@ -142,7 +142,13 @@ def create_upload_record(db, filename, file_path, file_size):
 
 
 def update_upload_status(
-    db, upload_id, status=None, safe_count=None, danger_count=None, total_count=None
+    db,
+    upload_id,
+    status=None,
+    safe_count=None,
+    danger_count=None,
+    total_count=None,
+    error_message=None,
 ):
     """Update upload status and counts."""
     upload = (
@@ -157,6 +163,8 @@ def update_upload_status(
             upload.danger_count = danger_count
         if total_count is not None:
             upload.total_count = total_count
+        if error_message:
+            upload.error_message = error_message
         db.commit()
         db.refresh(upload)
     return upload

@@ -159,8 +159,13 @@ def prepare_data_from_directories(data_dir, validation_split=0.2):
     danger_dir = data_path / "danger"
 
     # Collect all audio files
-    safe_files = list(safe_dir.glob("*.wav")) if safe_dir.exists() else []
-    danger_files = list(danger_dir.glob("*.wav")) if danger_dir.exists() else []
+    extensions = ["*.wav", "*.mp3"]
+    safe_files = []
+    danger_files = []
+
+    for ext in extensions:
+        safe_files.extend(list(safe_dir.glob(ext)))
+        danger_files.extend(list(danger_dir.glob(ext)))
 
     if len(safe_files) == 0 and len(danger_files) == 0:
         raise ValueError(f"No audio files found in {data_dir}")

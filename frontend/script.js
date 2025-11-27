@@ -695,8 +695,13 @@ retrainBtn.addEventListener('click', async () => {
                 
                 if (!statusData.is_training) {
                     clearInterval(pollInterval);
-                    retrainStatus.textContent = "✅ Retraining completed!";
-                    retrainStatus.className = "retrain-status show success";
+                    if (statusData.training_status && statusData.training_status.status === 'error') {
+                        retrainStatus.textContent = `❌ Retraining Failed: ${statusData.training_status.message}`;
+                        retrainStatus.className = "retrain-status show error";
+                    } else {
+                        retrainStatus.textContent = "✅ Retraining completed!";
+                        retrainStatus.className = "retrain-status show success";
+                    }
                 }
             } catch (error) {
                 console.error("Error checking training status:", error);
