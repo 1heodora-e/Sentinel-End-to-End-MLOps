@@ -3,31 +3,29 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, D
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-import tensorflow as tf
-from tensorflow.keras.preprocessing import image
-import numpy as np
-import shutil
 import os
 import sys
 import zipfile
 
-# Configure TensorFlow memory before importing (prevents OOM crashes)
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  # Reduce TensorFlow logging
-os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"  # Prevent GPU memory pre-allocation
-os.environ["CUDA_VISIBLE_DEVICES"] = (
-    "-1"  # Disable CUDA/GPU (Render free tier is CPU-only)
-)
-os.environ["TF_XLA_FLAGS"] = (
-    "--tf_xla_cpu_global_jit=false"  # Disable XLA JIT compilation
-)
-os.environ["TF_DISABLE_XLA"] = "1"  # Disable XLA entirely
+# ===== CRITICAL: Set TensorFlow environment variables FIRST =====
+# These MUST be set before ANY TensorFlow import to prevent CUDA initialization
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
+os.environ["TF_XLA_FLAGS"] = "--tf_xla_cpu_global_jit=false"
+os.environ["TF_DISABLE_XLA"] = "1"
+# ===== END CRITICAL SECTION =====
 
+# NOW import TensorFlow (after environment variables are set)
 import tensorflow as tf
 
-# Force CPU-only execution - hide all GPUs before any operations
-tf.config.set_visible_devices([], "GPU")  # Hide all GPUs immediately
+# Force CPU-only execution immediately after import
+try:
+    tf.config.set_visible_devices([], "GPU")
+except Exception:
+    pass  # Ignore if already configured
 
-# Limit TensorFlow memory growth to prevent OOM on limited resources
+# Additional TensorFlow configuration
 try:
     gpus = tf.config.list_physical_devices("GPU")
     if gpus:
@@ -45,6 +43,7 @@ base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(base_dir)  # project root
 
 from preprocessing import create_spectrogram
+from src.model import train_model
 from database import (
     init_db,
     get_db,
