@@ -19,11 +19,18 @@ except ImportError:
     pass  # python-dotenv not installed, use environment variables only
 
 # PostgreSQL connection string
-# Format: postgresql://username:password@host:port/database
-# Default to a local PostgreSQL instance
+# Format: postgresql+pg8000://username:password@host:port/database
 DATABASE_URL = os.getenv(
-    "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/sentinel_db"
+    "DATABASE_URL", "postgresql+pg8000://postgres:postgres@localhost:5432/sentinel_db"
 )
+
+# Ensure we use pg8000 driver even if env var specifies default postgresql://
+if (
+    DATABASE_URL
+    and "postgresql://" in DATABASE_URL
+    and "postgresql+pg8000://" not in DATABASE_URL
+):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+pg8000://")
 
 # Engine and session factory - created lazily to avoid memory conflicts at import time
 _engine = None

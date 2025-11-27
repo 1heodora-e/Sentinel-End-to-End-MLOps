@@ -82,9 +82,18 @@ training_status = {
 @app.on_event("startup")
 async def startup_event():
     """Initialize database on startup. Model will be loaded lazily on first request."""
-    # Database initialization is now lazy - tables will be created when database is first used
-    # This prevents memory conflicts with TensorFlow at startup
-    print("⚠️ Database will be initialized on first use to avoid memory conflicts")
+    # Initialize database tables (optional - graceful degradation if DB unavailable)
+    try:
+        init_db()
+        print("✅ Database initialized")
+    except Exception as e:
+        print(f"⚠️ Database initialization warning: {e}")
+        print("⚠️ Continuing without database logging. Retraining will still work.")
+        print(
+            "⚠️ To enable database: Set DATABASE_URL environment variable for PostgreSQL connection"
+        )
+
+    # Model will be loaded lazily on first request to save memory during startup
     print("⚠️ Model will be loaded on first request to optimize memory usage")
 
 
