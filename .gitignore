@@ -35,9 +35,11 @@ venv.bak/
 *.swo
 *~
 
-# Model files
+# Model files - Allow the trained model for deployment
 backend/models/*.h5
+!backend/models/sentinel_model.h5  # Allow this specific model file
 backend/models/*.json
+!backend/models/model_metadata.json  # Allow this metadata file
 !backend/models/.gitkeep
 
 # Data files (keep structure, ignore audio)
