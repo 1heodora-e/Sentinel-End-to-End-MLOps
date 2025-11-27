@@ -361,7 +361,6 @@ To test with multiple containers for scalability:
 - Error rate decreases with more containers due to better resource distribution
 - System scales linearly with container count, demonstrating good horizontal scalability
 
-_Note: Add screenshots of Locust dashboard results here_
 
 ## 🎨 Design System
 
