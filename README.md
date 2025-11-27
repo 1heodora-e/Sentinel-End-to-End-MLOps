@@ -11,9 +11,9 @@ Sentinel is an end-to-end Machine Learning pipeline that detects danger (screams
 ## 🌐 Live Deployment
 
 **Frontend URL:** https://sentinel-end-to-end-ml-ops.vercel.app  
-**Backend API URL:** https://sentinel-end-to-end-mlops-production.up.railway.app
+**Backend API URL:** https://TheodoraE-sentinel1-api.hf.space
 
-_Note: Frontend is deployed on Vercel, backend API is deployed on Railway. Test API endpoints at /docs for interactive API documentation._
+_Note: Frontend is deployed on Vercel, backend API is deployed on Hugging Face Spaces. Test API endpoints at /docs for interactive API documentation._
 
 ## 🏗️ Architecture
 

@@ -1,6 +1,5 @@
-// Use Railway deployment URL in production, localhost for development
-const API_BASE_URL = 'https://sentinel-end-to-end-mlops-production.up.railway.app';
-// For local development, use: 'http://localhost:8000'
+// Use Hugging Face deployment URL in production, localhost for development
+const API_BASE_URL = 'https://TheodoraE-sentinel1-api.hf.space';
 
 // DOM Elements
 const audioFileInput = document.getElementById('audioFile');
