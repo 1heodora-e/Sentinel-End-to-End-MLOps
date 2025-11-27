@@ -336,16 +336,8 @@ def retrain_model_background(zip_path, upload_dir, data_dir, upload_id, session_
         safe_dir, danger_dir = extract_and_organize_zip(zip_path, extract_dir)
 
         # Count files
-        safe_files = [
-            f
-            for f in os.listdir(safe_dir)
-            if f.endswith((".wav", ".mp3", ".flac", ".ogg", ".m4a"))
-        ]
-        danger_files = [
-            f
-            for f in os.listdir(danger_dir)
-            if f.endswith((".wav", ".mp3", ".flac", ".ogg", ".m4a"))
-        ]
+        safe_files = [f for f in os.listdir(safe_dir) if f.endswith((".wav"))]
+        danger_files = [f for f in os.listdir(danger_dir) if f.endswith((".wav"))]
         total_files = len(safe_files) + len(danger_files)
 
         # Update upload record with file counts
@@ -361,6 +353,10 @@ def retrain_model_background(zip_path, upload_dir, data_dir, upload_id, session_
         # Merge with existing data
         existing_safe = os.path.join(data_dir, "safe")
         existing_danger = os.path.join(data_dir, "danger")
+
+        # Create directories if they don't exist
+        os.makedirs(existing_safe, exist_ok=True)
+        os.makedirs(existing_danger, exist_ok=True)
 
         # Copy new files to existing directories
         for file in safe_files:
