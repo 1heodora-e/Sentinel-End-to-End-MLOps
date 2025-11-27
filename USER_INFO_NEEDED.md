@@ -28,21 +28,17 @@ This document lists all places where you need to add your personal/project infor
 
 **File:** `README.md` (Lines 15-16)
 
+**Status:** ✅ **Backend URL Updated**
+
 **Current:**
 ```markdown
-**Frontend URL:** [Add your frontend deployment URL here](https://your-frontend-url.vercel.app)  
-**Backend API URL:** [Add your backend API URL here](https://your-backend-url.render.com)
+**Backend API URL:** https://sentinel-end-to-end-mlops-production.up.railway.app  
+**Frontend URL:** [Add your frontend deployment URL here if deployed]
 ```
 
-**Action:** If you deploy your application:
-- **Frontend:** Update with your Vercel/Netlify/GitHub Pages URL
-- **Backend:** Update with your Render/Railway/Heroku API URL
-
-**Example:**
-```markdown
-**Frontend URL:** https://sentinel-frontend.vercel.app
-**Backend API URL:** https://sentinel-api.onrender.com
-```
+**Action:** 
+- ✅ **Backend:** Already deployed on Railway
+- **Frontend:** Update with your Vercel/Netlify/GitHub Pages URL if you deploy it separately
 
 ---
 
@@ -50,21 +46,15 @@ This document lists all places where you need to add your personal/project infor
 
 **File:** `frontend/script.js` (Line 1)
 
+**Status:** ✅ **Updated**
+
 **Current:**
 ```javascript
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = 'https://sentinel-end-to-end-mlops-production.up.railway.app';
+// For local development, use: 'http://localhost:8000'
 ```
 
-**Action:** If deploying frontend separately from backend:
-- Update to your production backend URL
-- Keep `localhost:8000` for local development
-- Or use environment detection:
-
-```javascript
-const API_BASE_URL = window.location.hostname === 'localhost' 
-    ? 'http://localhost:8000' 
-    : 'https://your-backend-url.onrender.com';
-```
+**Action:** ✅ Already updated with Railway deployment URL
 
 ---
 

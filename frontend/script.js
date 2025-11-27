@@ -1,4 +1,6 @@
-const API_BASE_URL = 'http://localhost:8000';
+// Use Railway deployment URL in production, localhost for development
+const API_BASE_URL = 'https://sentinel-end-to-end-mlops-production.up.railway.app';
+// For local development, use: 'http://localhost:8000'
 
 // DOM Elements
 const audioFileInput = document.getElementById('audioFile');

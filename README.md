@@ -8,18 +8,15 @@ Sentinel is an end-to-end Machine Learning pipeline that detects danger (screams
 
 **YouTube Link:** [Add your video demo link here](https://youtube.com)
 
-*Note: Please add your video demonstration link showing the complete workflow including prediction, retraining, and visualizations.*
 
 ## 🌐 Live Deployment
 
-**Frontend URL:** [Add your frontend deployment URL here](https://your-frontend-url.vercel.app)  
-**Backend API URL:** [Add your backend API URL here](https://your-backend-url.render.com)
+**Backend API URL:** https://sentinel-end-to-end-mlops-production.up.railway.app  
+**Frontend URL:** [Add your frontend deployment URL here if deployed]
 
-*Note: Update with your actual deployment URLs if available.*
+*Note: Backend API is deployed on Railway. Test endpoints at /docs for interactive API documentation.*
 
-## 🎨 Design
 
-**Aesthetic:** "Sophisticated Safety" - A "Girly but Secure" UI using Midnight Blue backgrounds with Rose Gold and Lavender accents.
 
 ## 🏗️ Architecture
 
@@ -57,7 +54,6 @@ Sentinel-End-to-End-MLOps/
 ├── notebook/                  # Jupyter notebooks
 │   └── sentinel_model.ipynb  # Model training and evaluation notebook
 ├── src/                       # Source code modules
-│   ├── preprocessing.py      # Audio -> Spectrogram conversion
 │   ├── model.py              # Model architecture & training functions
 │   └── prediction.py         # Prediction functions
 ├── backend/                  # The Python API
