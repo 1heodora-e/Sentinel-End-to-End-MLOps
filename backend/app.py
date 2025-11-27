@@ -116,6 +116,24 @@ def get_model():
     return model
 
 
+@app.get("/")
+def root():
+    """Root endpoint with API information."""
+    return {
+        "name": "Sentinel API",
+        "description": "Audio Distress Detection API using Deep Learning",
+        "version": "1.0",
+        "endpoints": {
+            "docs": "/docs",
+            "health": "/health",
+            "predict": "/predict",
+            "retrain": "/retrain",
+            "model_status": "/model/status",
+        },
+        "status": "running",
+    }
+
+
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
