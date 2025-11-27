@@ -272,6 +272,14 @@ def train_model(
     if existing_model is not None:
         model = existing_model
         print("Using provided model for retraining...")
+
+        # Recompile to reset optimizer state
+        print("Recompiling model to reset optimizer state...")
+        model.compile(
+            optimizer=keras.optimizers.Adam(learning_rate=0.001),
+            loss="binary_crossentropy",  # Assuming binary classification as per create_model
+            metrics=["accuracy"],
+        )
     elif os.path.exists(model_path):
         print(f"Loading existing model from {model_path}...")
         model = load_model(model_path)
