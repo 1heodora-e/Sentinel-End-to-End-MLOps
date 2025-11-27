@@ -3,6 +3,10 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, D
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
+import tensorflow as tf
+from tensorflow.keras.preprocessing import image
+import numpy as np
+import shutil
 import os
 import sys
 import zipfile
