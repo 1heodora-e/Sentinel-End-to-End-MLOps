@@ -1,5 +1,5 @@
 # backend/app.py
-from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, Depends
+from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -726,7 +726,7 @@ def continue_training_background(data_dir, epochs, session_id):
 @app.post("/continue-training")
 async def continue_training_trigger(
     background_tasks: BackgroundTasks,
-    epochs: int = 3,
+    epochs: int = Query(3, ge=1, le=50),
     db: Session = Depends(get_db),
 ):
     """

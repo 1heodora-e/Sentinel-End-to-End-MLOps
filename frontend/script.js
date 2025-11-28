@@ -783,10 +783,7 @@ if (continueTrainingBtn) {
         
         try {
             const response = await fetch(`${API_BASE_URL}/continue-training?epochs=${epochs}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
+                method: 'POST'
             });
             
             if (!response.ok) {
@@ -849,10 +846,7 @@ if (useExistingDatasetBtn) {
         
         try {
             const response = await fetch(`${API_BASE_URL}/retrain-existing`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
+                method: 'POST'
             });
             
             if (!response.ok) {
