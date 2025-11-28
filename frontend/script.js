@@ -21,6 +21,14 @@ const modelLoadedStatus = document.getElementById('modelLoadedStatus');
 const trainingStatus = document.getElementById('trainingStatus');
 const trainingProgress = document.getElementById('trainingProgress');
 const trainingProgressContainer = document.getElementById('trainingProgressContainer');
+const continueTrainingBtn = document.getElementById('continueTrainingBtn');
+const continueTrainingStatus = document.getElementById('continueTrainingStatus');
+const useExistingDatasetBtn = document.getElementById('useExistingDatasetBtn');
+const existingDatasetStatus = document.getElementById('existingDatasetStatus');
+const existingDatasetInfo = document.getElementById('existingDatasetInfo');
+const baseModelSelect = document.getElementById('baseModelSelect');
+const epochsInput = document.getElementById('epochsInput');
+const modelInfoText = document.getElementById('modelInfoText');
 
 // Navigation Elements
 const navLinks = document.querySelectorAll('.nav-link');
@@ -43,6 +51,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeNavigation();
     initializeTabs();
     checkModelStatus();
+    loadModelInfo();
+    loadExistingDatasetInfo();
     
     // Initialize stats from localStorage (without incrementing)
     updateStats(); // Pass undefined to just update display
@@ -714,3 +724,196 @@ retrainBtn.addEventListener('click', async () => {
         retrainBtn.disabled = false;
     }
 });
+
+// Load Model Information
+async function loadModelInfo() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/model/status`);
+        const data = await response.json();
+        
+        if (data.model_loaded) {
+            const accuracy = data.model_accuracy !== null && data.model_accuracy !== undefined
+                ? `${Math.round(data.model_accuracy * 100)}%`
+                : "N/A";
+            modelInfoText.textContent = `Model loaded. Accuracy: ${accuracy}`;
+        } else {
+            modelInfoText.textContent = "Model not loaded. Please wait...";
+        }
+    } catch (error) {
+        console.error("Error loading model info:", error);
+        modelInfoText.textContent = "Unable to load model information.";
+    }
+}
+
+// Load Existing Dataset Information
+async function loadExistingDatasetInfo() {
+    try {
+        // We'll fetch this from the backend or calculate from available data
+        // For now, we'll show a placeholder that gets updated when the page loads
+        existingDatasetInfo.textContent = "Checking available datasets...";
+        
+        // Try to get dataset info from backend (we can add an endpoint for this later)
+        // For now, we'll use a default message
+        existingDatasetInfo.textContent = "Click 'Use This Dataset' to retrain with existing data";
+    } catch (error) {
+        console.error("Error loading dataset info:", error);
+        existingDatasetInfo.textContent = "Unable to load dataset information.";
+    }
+}
+
+// Continue Training Button Event Listener
+if (continueTrainingBtn) {
+    continueTrainingBtn.addEventListener('click', async () => {
+        const selectedModel = baseModelSelect.value;
+        const epochs = parseInt(epochsInput.value) || 3;
+        
+        if (!selectedModel) {
+            alert("Please select a model first!");
+            return;
+        }
+        
+        if (epochs < 1 || epochs > 50) {
+            alert("Epochs must be between 1 and 50!");
+            return;
+        }
+        
+        continueTrainingBtn.disabled = true;
+        continueTrainingStatus.textContent = "Starting training...";
+        continueTrainingStatus.className = "retrain-status show info";
+        
+        try {
+            const response = await fetch(`${API_BASE_URL}/continue-training?epochs=${epochs}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            continueTrainingStatus.textContent = `✅ ${data.message}`;
+            continueTrainingStatus.className = "retrain-status show success";
+            
+            // Start polling for training status
+            const pollInterval = setInterval(async () => {
+                await checkModelStatus();
+                await loadModelInfo();
+                
+                try {
+                    const statusResponse = await fetch(`${API_BASE_URL}/model/status`);
+                    const statusData = await statusResponse.json();
+                    
+                    if (!statusData.is_training) {
+                        clearInterval(pollInterval);
+                        continueTrainingBtn.disabled = false;
+                        
+                        if (statusData.training_status && statusData.training_status.status === 'error') {
+                            continueTrainingStatus.textContent = `❌ Training Failed: ${statusData.training_status.message}`;
+                            continueTrainingStatus.className = "retrain-status show error";
+                        } else {
+                            continueTrainingStatus.textContent = "✅ Training completed!";
+                            continueTrainingStatus.className = "retrain-status show success";
+                        }
+                    } else {
+                        // Update status during training
+                        const progress = statusData.training_status.progress || 0;
+                        const epoch = statusData.training_status.epoch || 0;
+                        const totalEpochs = statusData.training_status.total_epochs || epochs;
+                        continueTrainingStatus.textContent = `Training in progress... ${progress}% (Epoch ${epoch}/${totalEpochs})`;
+                        continueTrainingStatus.className = "retrain-status show info";
+                    }
+                } catch (error) {
+                    console.error("Error checking training status:", error);
+                }
+            }, 2000);
+            
+        } catch (error) {
+            continueTrainingStatus.textContent = `❌ Training Failed: ${error.message}`;
+            continueTrainingStatus.className = "retrain-status show error";
+            continueTrainingBtn.disabled = false;
+        }
+    });
+}
+
+// Use Existing Dataset Button Event Listener
+if (useExistingDatasetBtn) {
+    useExistingDatasetBtn.addEventListener('click', async () => {
+        useExistingDatasetBtn.disabled = true;
+        existingDatasetStatus.textContent = "Starting retraining with existing datasets...";
+        existingDatasetStatus.className = "retrain-status show info";
+        
+        try {
+            const response = await fetch(`${API_BASE_URL}/retrain-existing`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            existingDatasetStatus.textContent = `✅ ${data.message}`;
+            existingDatasetStatus.className = "retrain-status show success";
+            
+            // Update dataset info display
+            if (data.safe_count !== undefined && data.danger_count !== undefined) {
+                existingDatasetInfo.textContent = `${data.data_files} files (${data.safe_count} safe, ${data.danger_count} danger)`;
+            }
+            
+            // Start polling for training status
+            const pollInterval = setInterval(async () => {
+                await checkModelStatus();
+                await loadModelInfo();
+                
+                try {
+                    const statusResponse = await fetch(`${API_BASE_URL}/model/status`);
+                    const statusData = await statusResponse.json();
+                    
+                    if (!statusData.is_training) {
+                        clearInterval(pollInterval);
+                        useExistingDatasetBtn.disabled = false;
+                        
+                        if (statusData.training_status && statusData.training_status.status === 'error') {
+                            existingDatasetStatus.textContent = `❌ Training Failed: ${statusData.training_status.message}`;
+                            existingDatasetStatus.className = "retrain-status show error";
+                        } else {
+                            existingDatasetStatus.textContent = "✅ Retraining completed!";
+                            existingDatasetStatus.className = "retrain-status show success";
+                        }
+                    } else {
+                        // Update status during training
+                        const progress = statusData.training_status.progress || 0;
+                        const epoch = statusData.training_status.epoch || 0;
+                        const totalEpochs = statusData.training_status.total_epochs || 3;
+                        existingDatasetStatus.textContent = `Training in progress... ${progress}% (Epoch ${epoch}/${totalEpochs})`;
+                        existingDatasetStatus.className = "retrain-status show info";
+                    }
+                } catch (error) {
+                    console.error("Error checking training status:", error);
+                }
+            }, 2000);
+            
+        } catch (error) {
+            existingDatasetStatus.textContent = `❌ Retraining Failed: ${error.message}`;
+            existingDatasetStatus.className = "retrain-status show error";
+            useExistingDatasetBtn.disabled = false;
+        }
+    });
+}
+
+// Update model info when model select changes
+if (baseModelSelect) {
+    baseModelSelect.addEventListener('change', () => {
+        loadModelInfo();
+    });
+}

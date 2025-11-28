@@ -583,3 +583,291 @@ async def retrain_trigger(
         return JSONResponse(
             status_code=500, content={"error": f"Failed to save file: {str(e)}"}
         )
+
+
+def continue_training_background(data_dir, epochs, session_id):
+    """
+    Background function to continue training with existing data.
+    """
+    global model, is_training, training_status
+
+    # Get database session
+    db = next(get_db())
+
+    try:
+        # Ensure tables exist before trying to use database (lazy initialization)
+        if db is not None:
+            try:
+                init_db()
+            except Exception:
+                pass  # Tables might already exist, continue anyway
+
+        is_training = True
+        training_status = {
+            "status": "preprocessing",
+            "message": "Preparing existing data...",
+            "progress": 10,
+            "epoch": 0,
+            "total_epochs": epochs,
+        }
+
+        # Update session status (only if db is available)
+        if db is not None and session_id is not None:
+            update_retraining_session(db, session_id, status="preprocessing")
+
+        # Check existing data directories
+        existing_safe = os.path.join(data_dir, "safe")
+        existing_danger = os.path.join(data_dir, "danger")
+
+        # Create directories if they don't exist
+        os.makedirs(existing_safe, exist_ok=True)
+        os.makedirs(existing_danger, exist_ok=True)
+
+        # Count existing files
+        safe_files = [
+            f for f in os.listdir(existing_safe) if f.lower().endswith((".wav", ".mp3", ".flac", ".ogg", ".m4a"))
+        ] if os.path.exists(existing_safe) else []
+        danger_files = [
+            f for f in os.listdir(existing_danger) if f.lower().endswith((".wav", ".mp3", ".flac", ".ogg", ".m4a"))
+        ] if os.path.exists(existing_danger) else []
+        total_files = len(safe_files) + len(danger_files)
+
+        if total_files == 0:
+            raise Exception("No training data found. Please upload data first or use existing datasets.")
+
+        training_status = {
+            "status": "preprocessing",
+            "message": f"Preprocessing {total_files} audio files...",
+            "progress": 30,
+            "epoch": 0,
+            "total_epochs": epochs,
+        }
+
+        # Train model (this will handle preprocessing internally)
+        training_status = {
+            "status": "training",
+            "message": "Training model...",
+            "progress": 50,
+            "epoch": 0,
+            "total_epochs": epochs,
+        }
+
+        if db is not None and session_id is not None:
+            update_retraining_session(db, session_id, status="training")
+
+        # Ensure model is loaded before retraining
+        current_model = get_model() if model is None else model
+
+        # Use existing model for retraining
+        retrained_model, history = train_model(
+            data_dir=data_dir,
+            model_path=MODEL_PATH,
+            epochs=epochs,
+            batch_size=32,
+            validation_split=0.2,
+            existing_model=current_model,
+        )
+
+        # Reload model
+        model = retrained_model
+
+        # Extract final metrics
+        final_acc = history.history["accuracy"][-1]
+        final_val_acc = history.history["val_accuracy"][-1]
+        final_loss = history.history["loss"][-1]
+        final_val_loss = history.history["val_loss"][-1]
+
+        # Update database with training results
+        if db is not None and session_id is not None:
+            update_retraining_session(
+                db,
+                session_id,
+                status="completed",
+                final_accuracy=float(final_acc),
+                final_val_accuracy=float(final_val_acc),
+                final_loss=float(final_loss),
+                final_val_loss=float(final_val_loss),
+                total_samples=total_files,
+            )
+
+        training_status = {
+            "status": "completed",
+            "message": f"Training completed! Final accuracy: {final_val_acc:.2%}",
+            "progress": 100,
+            "epoch": epochs,
+            "total_epochs": epochs,
+        }
+
+        is_training = False
+
+    except Exception as e:
+        is_training = False
+        error_msg = str(e)
+
+        # Update database with error
+        if db is not None and session_id is not None:
+            update_retraining_session(
+                db, session_id, status="failed", error_message=error_msg
+            )
+
+        training_status = {
+            "status": "error",
+            "message": f"Training failed: {error_msg}",
+            "progress": 0,
+            "epoch": 0,
+            "total_epochs": epochs,
+        }
+        print(f"❌ Continue training error: {e}")
+    finally:
+        if db is not None:
+            db.close()
+
+
+@app.post("/continue-training")
+async def continue_training_trigger(
+    background_tasks: BackgroundTasks,
+    epochs: int = 3,
+    db: Session = Depends(get_db),
+):
+    """
+    Continue training the model with existing data and specified number of epochs.
+    """
+    global is_training
+
+    if is_training:
+        raise HTTPException(
+            status_code=409, detail="Model is already training. Please wait."
+        )
+
+    # Load model if not already loaded (lazy loading)
+    try:
+        get_model()  # Ensure model is loaded
+    except Exception as e:
+        raise HTTPException(
+            status_code=503, detail=f"Model not available. Cannot retrain: {str(e)}"
+        )
+
+    # Validate epochs
+    if epochs < 1 or epochs > 50:
+        raise HTTPException(
+            status_code=400, detail="Epochs must be between 1 and 50"
+        )
+
+    # Get data directory
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    data_dir = os.path.join(base_dir, "data")
+
+    # Check if data exists
+    existing_safe = os.path.join(data_dir, "safe")
+    existing_danger = os.path.join(data_dir, "danger")
+    
+    safe_count = len([f for f in os.listdir(existing_safe) if f.lower().endswith((".wav", ".mp3", ".flac", ".ogg", ".m4a"))]) if os.path.exists(existing_safe) else 0
+    danger_count = len([f for f in os.listdir(existing_danger) if f.lower().endswith((".wav", ".mp3", ".flac", ".ogg", ".m4a"))]) if os.path.exists(existing_danger) else 0
+    
+    if safe_count == 0 and danger_count == 0:
+        raise HTTPException(
+            status_code=404, detail="No training data found. Please upload data first."
+        )
+
+    # Create database session record
+    session_id = None
+    try:
+        try:
+            init_db()
+        except Exception:
+            pass  # Tables might already exist
+
+        # Create retraining session record
+        retraining_session = create_retraining_session(db, None, epochs=epochs)
+        session_id = retraining_session.id
+    except Exception as db_error:
+        print(f"⚠️ Database error: {db_error}. Continuing without database logging...")
+
+    # Start background training task
+    background_tasks.add_task(
+        continue_training_background,
+        data_dir,
+        epochs,
+        session_id,
+    )
+
+    return {
+        "status": "Training Initiated",
+        "message": f"Continuing training with {epochs} epochs using existing data ({safe_count + danger_count} files).",
+        "training_started": True,
+        "session_id": session_id,
+        "data_files": safe_count + danger_count,
+    }
+
+
+@app.post("/retrain-existing")
+async def retrain_existing_datasets_trigger(
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """
+    Retrain model using existing datasets stored in the system.
+    This is similar to continue training but uses default epochs (3).
+    """
+    global is_training
+
+    if is_training:
+        raise HTTPException(
+            status_code=409, detail="Model is already training. Please wait."
+        )
+
+    # Load model if not already loaded (lazy loading)
+    try:
+        get_model()  # Ensure model is loaded
+    except Exception as e:
+        raise HTTPException(
+            status_code=503, detail=f"Model not available. Cannot retrain: {str(e)}"
+        )
+
+    # Get data directory
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    data_dir = os.path.join(base_dir, "data")
+
+    # Check if data exists
+    existing_safe = os.path.join(data_dir, "safe")
+    existing_danger = os.path.join(data_dir, "danger")
+    
+    safe_count = len([f for f in os.listdir(existing_safe) if f.lower().endswith((".wav", ".mp3", ".flac", ".ogg", ".m4a"))]) if os.path.exists(existing_safe) else 0
+    danger_count = len([f for f in os.listdir(existing_danger) if f.lower().endswith((".wav", ".mp3", ".flac", ".ogg", ".m4a"))]) if os.path.exists(existing_danger) else 0
+    
+    if safe_count == 0 and danger_count == 0:
+        raise HTTPException(
+            status_code=404, detail="No training data found. Please upload data first."
+        )
+
+    # Create database session record
+    session_id = None
+    try:
+        try:
+            init_db()
+        except Exception:
+            pass  # Tables might already exist
+
+        # Create retraining session record with default epochs
+        retraining_session = create_retraining_session(db, None, epochs=3)
+        session_id = retraining_session.id
+    except Exception as db_error:
+        print(f"⚠️ Database error: {db_error}. Continuing without database logging...")
+
+    # Start background training task with default epochs
+    background_tasks.add_task(
+        continue_training_background,
+        data_dir,
+        3,  # Default epochs
+        session_id,
+    )
+
+    return {
+        "status": "Training Initiated",
+        "message": f"Retraining with existing datasets ({safe_count + danger_count} files: {safe_count} safe, {danger_count} danger).",
+        "training_started": True,
+        "session_id": session_id,
+        "data_files": safe_count + danger_count,
+        "safe_count": safe_count,
+        "danger_count": danger_count,
+    }

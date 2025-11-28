@@ -217,7 +217,8 @@
                             <h3>Last Trained Model</h3>
                             <p id="modelInfoText">No model information available. Please select a model first.</p>
                         </div>
-                        <button class="btn btn-primary">Continue Training</button>
+                        <button id="continueTrainingBtn" class="btn btn-primary">Continue Training</button>
+                        <div id="continueTrainingStatus" class="retrain-status"></div>
                     </div>
                 </div>
 
@@ -229,10 +230,11 @@
                         <div class="dataset-list">
                             <div class="dataset-item">
                                 <span class="dataset-name">Default Training Set</span>
-                                <span class="dataset-info">200 files (100 safe, 100 danger)</span>
-                                <button class="btn btn-secondary btn-small">Use This Dataset</button>
+                                <span class="dataset-info" id="existingDatasetInfo">Loading dataset info...</span>
+                                <button id="useExistingDatasetBtn" class="btn btn-secondary btn-small">Use This Dataset</button>
                             </div>
                         </div>
+                        <div id="existingDatasetStatus" class="retrain-status"></div>
                     </div>
                 </div>
             </div>

@@ -89,7 +89,7 @@ class RetrainingSession(Base):
     __tablename__ = "retraining_sessions"
 
     id = Column(Integer, primary_key=True, index=True)
-    upload_id = Column(Integer, nullable=False)  # Foreign key to training_data_uploads
+    upload_id = Column(Integer, nullable=True)  # Foreign key to training_data_uploads (nullable for continue training without upload)
     start_timestamp = Column(DateTime, default=datetime.utcnow)
     end_timestamp = Column(DateTime, nullable=True)
     status = Column(
